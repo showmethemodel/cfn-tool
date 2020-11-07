@@ -1,0 +1,4 @@
+/build/
+/.dockerhome
+node_modules/
+.#*

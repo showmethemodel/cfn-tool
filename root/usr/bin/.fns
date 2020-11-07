@@ -1,0 +1,55 @@
+#!/bin/bash
+
+set -e -o pipefail
+
+warn()  { [ $# -eq 0 ] || echo $(basename $0): "$@" 1>&2; }
+abort() { warn "$@"; exit 1; }
+
+## colors #####################################################################
+
+bold()    { echo -e "\033[1m""$@""\033[0m"; }
+red()     { echo -e "\033[31m""$@""\033[0m"; }
+green()   { echo -e "\033[32m""$@""\033[0m"; }
+yellow()  { echo -e "\033[33m""$@""\033[0m"; }
+blue()    { echo -e "\033[34m""$@""\033[0m"; }
+
+## logging ####################################################################
+
+info()    { bold "$@"; }
+notice()  { bold "$(blue "$@")"; }
+warning() { bold "$(yellow "$@")"; }
+error()   { bold "$(red "$@")"; }
+success() { bold "$(green "$@")"; }
+
+## helpers ####################################################################
+
+[ -f .cfn-tools ] && . .cfn-tools || true
+
+[ $CFN_TOOLS_BUCKET ] || {
+  warn required env var CFN_TOOLS_BUCKET not set
+  warn Hint: 'echo CFN_TOOLS_BUCKET=my-bukkit > .cfn-tools'
+  abort
+}
+
+for i in AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_DEFAULT_REGION; do
+  [ -n "${!i}" ] || abort required env var $i not set
+done
+
+bucket=$CFN_TOOLS_BUCKET
+
+relpath() { 
+  python -c "import os,sys;print(os.path.relpath(*(sys.argv[1:])))" "$@";
+}
+
+git_id() {
+  branch=$(echo -n $(git symbolic-ref --short -q HEAD) && echo -n @)
+  local sha=$(git rev-parse HEAD)
+  local dirtyplus=$(git diff-files --quiet || echo +)
+  echo ${branch}${sha}${dirtyplus}
+}
+
+in_submodule() {
+  (cd "$(git rev-parse --show-toplevel)/.." \
+    && git rev-parse --is-inside-work-tree) 2>/dev/null \
+    | grep -q true
+}

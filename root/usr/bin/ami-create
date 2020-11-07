@@ -1,0 +1,110 @@
+#!/bin/bash
+
+set -e -o pipefail
+
+mydir="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+. "$mydir/.fns"
+
+usage() {
+  exec 1>&2
+  [[ -n "$1" ]] && echo "$(basename $0): $1" && echo
+  cat <<EOT
+USAGE:
+  $(basename $0) [-hkW] [-c <imageid>] [-d <dir>] [<user>@]<host>
+
+OVERVIEW:
+  Creates an AMI from the running instance with hostname <host>, optionally
+  terminating the instance afterwards. The AMI's name and ID are printed to
+  stdout. The -c option may be used to resume a previous attempt to create
+  an AMI that failed after the step where the image was created.
+
+  Note: This script must be run from the service submodule directory or the
+  -d <dir> option must be provided with the submodule directory as argument.
+
+OPTIONS:
+  -c <imageid>  Continue creating AMI with id <imageid> after a failure.
+  -d <dir>      Change to the <dir> directory before starting work.
+  -h            Print this and exit.
+  -k            Terminate host when AMI creation is complete.
+  -W            Don't wait for AMI to become available.
+EOT
+}
+
+killhost=false
+nowait=false
+
+while getopts "c:d:hkW" o; do
+  case "${o}" in
+    c) image_id=$OPTARG ;;
+    d) cd $OPTARG ;;
+    h) usage ; exit ;;
+    k) killhost=true ;;
+    W) nowait=true ;;
+    *) abort ;;
+  esac
+done
+shift $((OPTIND-1))
+
+in_submodule || abort "must be run in submodule directory (or use -d option)"
+
+host=$1
+[ -n "$host" ] || abort "host name required"
+
+export project=$(basename "$(pwd)")
+git_id=$(git_id)
+git_sha=$(git rev-parse HEAD)
+ami_name=$(date -u +$project-%Y-%m-%d-%H%M%S-$git_id)
+
+info "Getting instance id..."
+instance_id=$(ssh $host 'curl -s instance-data/latest/meta-data/instance-id') \
+  || abort "can't get instance id"
+
+if [ -z "$image_id" ]; then
+  info "Preparing host..."
+  cat <<'EOT' |envsubst '$project' |ssh $host 'sudo bash' || abort "can't prepare instance"
+set -e -o pipefail
+
+# run the project-specific create script if applicable
+( cd /opt/${project}; [ ! -x ami/create ] || ./ami/create )
+
+# make sure directories have the correct owner and permissions
+chown root:root / /etc
+chmod 755 / /etc
+
+# remove rotated log files and truncate current log files
+find /var/log -type f |grep -E '^.*[^0-9].*\.[0-9]+(\.gz)?$' |xargs rm -f || true
+find /var/log -type f -exec truncate -s 0 {} \; || true
+
+# truncate bash history files
+truncate -s 0 /root/.bash_history
+truncate -s 0 /home/ec2-user/.bash_history
+EOT
+
+  info "Creating image..."
+  image_id=$(aws ec2 create-image \
+    --instance-id $instance_id \
+    --name $ami_name \
+    --reboot \
+    |jt ImageId %) || abort "can't create image"
+
+  trap 'notice "Image created: $image_id"' EXIT
+fi
+
+info "Tagging image..."
+aws ec2 create-tags \
+  --resources $image_id \
+  --tags Key=BillingGroup,Value=delivery Key=BillingProject,Value=$project \
+  || abort "can't tag image"
+
+if $killhost; then
+  info "Terminating host..."
+  aws autoscaling terminate-instance-in-auto-scaling-group \
+    --instance-id $instance_id --should-decrement-desired-capacity \
+    |jt Activity Description % \
+    || abort "can't terminate host"
+fi
+
+trap 'success "Done: $image_id $ami_name"' EXIT
+
+info "Waiting for AMI to become available (CTRL-C to quit)..."
+aws ec2 wait image-available --image-ids $image_id

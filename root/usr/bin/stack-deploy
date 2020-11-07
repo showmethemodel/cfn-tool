@@ -1,0 +1,115 @@
+#!/usr/bin/env bash
+
+set -e -o pipefail
+
+mydir="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+. "$mydir/.fns"
+
+tpl_tmpfile=$(mktemp)
+tmpdir=$(mktemp -d)
+
+usage() {
+  warn "$@"
+  cat <<EOT
+USAGE:
+  $(basename $0) [-h] <stackname>
+
+OVERVIEW:
+  Deploy cloudformation stack <stackname>, where <stackname> is of the fol-
+  lowing format:
+
+    <zone>-<template>
+
+  The <zone> must correspond to a configuration file named config/<zone>.yml,
+  and the <template> must correspond to a file named infra/<template>.yml.
+
+  Note: The <zone> name may not contain any dash (-) characters.
+
+OPTIONS:
+  -h              Print this and exit.
+EOT
+  exit;
+}
+
+while getopts "h" o; do
+  case "${o}" in
+    h) usage ;;
+    ?) abort ;;
+  esac
+done
+shift $((OPTIND-1))
+
+stack_name=$1; shift
+[ -n "$stack_name" ] || abort "stack name required"
+
+tag_name=$stack_name/$USER/$(date -u +%Y-%m-%d-%H%M%S)
+export Zone=$(echo "$stack_name" |cut -d- -f1)
+
+template_base=infra/$(echo "$stack_name" |cut -d- -f2-)
+template=${template_base}.yml
+[ -f $template ] || abort "file not found: $template"
+
+notice "$stack_name -> $(git_id)"
+
+info "Packaging..."
+
+template-package \
+  --temp-dir $tmpdir \
+  --out-file $tpl_tmpfile \
+  --s3-bucket $bucket \
+  --s3-prefix templates/ \
+  $template >/dev/null \
+  || abort
+
+echo Base template written to $tpl_tmpfile...
+
+info "Validating..."
+
+info=$(aws cloudformation validate-template --template-body "$(cat $tpl_tmpfile)") || abort
+keys=$(echo "$info" |jt Parameters ParameterKey %)
+params="Version=$(git_id)"
+
+for key in $keys; do
+  [ -z "${!key}" ] || params="$params ${key}=${!key}"
+done
+
+info "Uploading templates to S3..."
+aws s3 sync --size-only $tmpdir s3://$bucket/templates/
+
+start_time=$(date -u +%Y-%m-%dT%H:%M:%S.000Z)
+
+event_log() {
+  info "Event log:"
+  "${mydir}"/stack-log $stack_name $start_time
+}
+
+info "Deploying..."
+
+aws cloudformation deploy \
+  --stack-name $stack_name \
+  --template-file $tpl_tmpfile \
+  --capabilities CAPABILITY_NAMED_IAM CAPABILITY_IAM CAPABILITY_AUTO_EXPAND \
+  ${params:+--parameter-overrides $params} \
+  --tags Zone=$Zone \
+  | grep . \
+  || { event_log; abort; }
+
+errors=0
+
+info "Setting termination protection..."
+
+aws cloudformation update-termination-protection \
+  --stack-name $stack_name \
+  --enable-termination-protection > /dev/null \
+  || { errors=$((errors + 1)); true; }
+
+info "Tagging commit ($tag_name)..."
+
+git tag $tag_name
+git push --tags || warning "Remember to do 'git push --tags'!"
+
+if [ $errors -eq 0 ]; then
+  success DONE
+else
+  error "FAIL: $errors errors"
+fi

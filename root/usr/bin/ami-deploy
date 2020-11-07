@@ -1,0 +1,97 @@
+#!/bin/bash
+
+set -e -o pipefail
+
+mydir="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+. "$mydir/.fns"
+
+usage() {
+  exec 1>&2
+  [[ -n "$1" ]] && echo "$(basename $0): $1" && echo
+  cat <<EOT
+USAGE:
+  $(basename $0) [-hp] [-d <dir>] [-f <file>] [<user>@]<host>
+
+OVERVIEW:
+  Uploads and unpacks project.tar.gz on the <host>, optionally runs the
+  project's provision script, and then runs the project's deploy script.
+
+  Note: This script must be run from the service submodule directory or the
+  -d <dir> option must be provided with the submodule directory as argument.
+
+OPTIONS:
+  -d <dir>  Change to the <dir> directory before starting work.
+  -f <file> Deploy <file> instead of project.tar.gz.
+  -h        Print this and exit.
+  -p        Run the project's provision script on <host> before deploying.
+EOT
+}
+
+export noprovision=true
+tarball=project.tar.gz
+
+while getopts "d:f:hp" o; do
+  case "${o}" in
+    d) cd $OPTARG ;;
+    f) tarball=$OPTARG ;;
+    h) usage ; exit ;;
+    p) noprovision=false ;;
+    *) abort ;;
+  esac
+done
+shift $((OPTIND-1))
+
+in_submodule || abort "must be run in submodule directory (or use -d option)"
+
+host=$1; shift
+[ -n "$host" ] || abort "host name required"
+
+[ -f $tarball ] || abort "file not found: $tarball"
+
+export project=$(basename "$(pwd)")
+
+info "Uploading..."
+cat $tarball |ssh $host "cat > /tmp/$project.tar.gz" || abort "can't upload"
+
+info "Deploying..."
+cat <<'EOT' |envsubst '$project:$noprovision' |ssh $host 'sudo bash' || abort "can't deploy"
+set -e
+set -o pipefail
+
+warn()  { [ $# -gt 0 ] && echo deploying: "$@" 1>&2; }
+abort() { warn "$@"; exit 1; }
+
+apptar=/tmp/$project.tar.gz
+appdir=/opt/${project}
+appsrc=$(mktemp -d -p /opt ${project}.XXX)
+
+# ensure cleanup on failure
+trap "rm -rf $apptar $appsrc" EXIT
+
+# uncompress tarball into project source directory and remove tarball
+( cd $appsrc && cat $apptar |tar xzf - )
+rm -f $apptar
+
+# link project /opt dir to the source dir, saving old source dir
+appsrc_old=$(readlink -e $appdir || true)
+ln -sfn $appsrc $appdir
+
+# ensure rollback and cleanup on failure
+[ ! -d "$appsrc_old" ] \
+  || trap "ln -sfn $appsrc_old $appdir ; rm -rf $appsrc" EXIT
+
+cd $appdir
+
+# run the provision script (if necessary)
+${noprovision} || [ ! -f ./ami/provision ] \
+  || ./ami/provision || abort "./ami/provision failed"
+
+# run the deploy script
+[ ! -f ./ami/deploy ] || ./ami/deploy || abort "./ami/deploy failed"
+
+# succeess -- no need to rollback or cleanup anymore
+trap - EXIT
+
+# cleanup old source dir
+[ ! -d "$appsrc_old" ] || rm -rf $appsrc_old
+EOT

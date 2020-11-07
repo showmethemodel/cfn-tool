@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+
+prog=$0
+
+warn() { [ $# -gt 0 ] && echo $prog: "$@" 1>&2; }
+abort() { warn "$@"; exit 1; }
+
+usage() {
+  warn "$@"
+  cat <<EOT
+USAGE: $(basename $prog) [-hd] [-- DOCKEROPT...]
+
+  Starts the cfn-tools docker container. Use -d option to have the container
+  set up to use the AWS nameservers; this resolves domain names to the inter-
+  nal IP addresses in Amazon split-horizon DNS.
+
+OPTIONS:
+  -p <host:container>   Map <host> port on host to <container> port in the container.
+  -d <nameserver>       Use <nameserver> for DNS resolution.
+  -h                    Print this and exit.
+EOT
+  exit;
+}
+
+portmaps=()
+
+while getopts "hd:p:" o; do
+  case "${o}" in
+    p) portmaps+=("-p $OPTARG") ;;
+    d) NAMESERVER="--dns=$OPTARG" ;;
+    h) usage ;;
+    ?) abort ;;
+  esac
+done
+shift $((OPTIND-1))
+
+if [ `uname` = "Darwin" ]; then
+    USER_UID=1000
+    USER_GID=50
+else
+    USER_UID=$(id -u)
+    USER_GID=$(id -g)
+fi
+
+ORG=showmethemodel
+PROJECT=cfn-tools
+TAG=$ORG/$PROJECT
+VERSION=latest
+INFRA_BASE_DIR=$PWD
+CFN_DOCKERHOME=~/.cfn-tools/dockerhome
+
+export USER_UID USER_GID INFRA_BASE_DIR
+
+mkdir -p $CFN_DOCKERHOME
+
+if [ ! -f $CFN_DOCKERHOME/.bashrc ]; then
+  cat <<'EOT' > $CFN_DOCKERHOME/.bashrc
+# .bashrc
+
+# Source global definitions
+if [ -f /etc/bashrc ]; then
+  . /etc/bashrc
+fi
+
+# User specific aliases and functions
+EOT
+fi
+
+mkdir -p $CFN_DOCKERHOME/.parallel
+touch $CFN_DOCKERHOME/.parallel/will-cite
+
+docker run -it --rm --net=host \
+  $NAMESERVER \
+  ${portmaps[@]} \
+  --name "$PROJECT.$USER.$(basename "$(pwd)" |grep -o '^[a-zA-Z0-9][a-zA-Z0-9_.-]*')" \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v "$CFN_DOCKERHOME:$HOME" \
+  -v "$INFRA_BASE_DIR:$INFRA_BASE_DIR" \
+  -v $(dirname $SSH_AUTH_SOCK):$(dirname $SSH_AUTH_SOCK) \
+  -e USER_HOME=$HOME \
+  -e USER_NAME=$USER \
+  -e USER_UID \
+  -e USER_GID \
+  -e SSH_AUTH_SOCK \
+  -e INFRA_BASE_DIR \
+  -e AWS_ACCESS_KEY_ID \
+  -e AWS_SECRET_ACCESS_KEY \
+  -e AWS_DEFAULT_REGION \
+  $@ \
+  $TAG:$VERSION /usr/bin/startup.sh

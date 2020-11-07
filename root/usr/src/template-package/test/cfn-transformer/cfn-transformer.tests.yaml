@@ -1,0 +1,348 @@
+round-trips simple yaml docs:
+
+  template:
+    Foo:
+      Bar: baz
+
+  expected:
+    Foo:
+      Bar: baz
+
+expands Fn::Parameters macros:
+
+  template:
+    Fn::Parameters:
+      - Foo
+      - Bar Type=CommaDelimitedList
+
+  expected:
+    Parameters:
+      Foo:
+        Type: String
+      Bar:
+        Type: CommaDelimitedList
+
+creates dynamic bindings with Fn::Let:
+
+  template:
+    Fn::Let:
+      MyName: nobody
+      MyAge: 0
+      Alice:
+        MyName: alice
+      Template:
+        MyNameIs: !Ref MyName
+        MyAgeIs: !Ref MyAge
+    Foo: !Let
+      - !Ref Alice
+      - !Ref Template
+    Bar: !Let
+      - MyName: bob
+        MyAge: 200
+      - !Ref Template
+    Baz:
+      Ref: Template
+      MyNameIs: charlie
+
+  expected:
+    Foo:
+      MyNameIs: alice
+      MyAgeIs: 0
+    Bar:
+      MyNameIs: bob
+      MyAgeIs: 200
+    Baz:
+      MyNameIs: charlie
+      MyAgeIs: 0
+
+substitites bindings in Refs:
+
+  template:
+    Fn::Let:
+      Binding1: val1
+      Binding2: [val2, val3, val4]
+      Binding3:
+        Key1:
+          Key2: 100
+    Foo: !Ref Binding1
+    Bar: !Ref Binding2
+    Baz: !Ref Binding3.Key1.Key2
+
+  expected:
+    Foo: val1
+    Bar:
+      - val2
+      - val3
+      - val4
+    Baz: 100
+
+substitutes env vars in Refs:
+
+  template:
+    Foo: !Ref '$MY_ENV_VAR'
+
+  expected:
+    Foo: myval
+
+substitutes mapping lookups in Refs:
+
+  template:
+    Foo: !Ref '%key.subkey'
+
+  expected:
+    Foo:
+      Fn::FindInMap:
+        - key
+        - subkey
+
+substitutes GetAtt lookups in Refs:
+
+  template:
+    Foo: !Ref '@Thing.ARN'
+
+  expected:
+    Foo:
+      Fn::GetAtt:
+        - Thing
+        - ARN
+
+ignores Refs it cannot transform:
+
+  template:
+    Foo: !Ref Thing
+
+  expected:
+    Foo:
+      Ref: Thing
+
+expands Fn::Sub macros:
+
+  template:
+    Fn::Let:
+      Test1: testval1
+    Foo: !Sub 'One${Foo}Two${%${AWS::Region}.Vpc.CidrBlock}Three${@Bar.ARN}Four:${Test1}'
+
+  expected:
+    Foo:
+      Fn::Join:
+        - ''
+        - - One
+          - Ref: Foo
+          - Two
+          - Fn::FindInMap:
+              - Ref: AWS::Region
+              - Vpc
+              - CidrBlock
+          - Three
+          - Fn::GetAtt:
+              - Bar
+              - ARN
+          - Four:testval1
+
+merges strings in Fn::Join:
+
+  template:
+    Fn::Let:
+      Bind1: one
+      Bind2: two
+    Foo: !Sub '${Bind1}=1,${Bind2}=2,${$MY_ENV_VAR}=3'
+
+  expected:
+    Foo: 'one=1,two=2,myval=3'
+
+expands Fn::Resources macros:
+
+  template:
+    Fn::Let:
+      BucketTpl:
+        Type: AWS::S3::Bucket
+        Properties:
+          BucketName: !Ref Name
+    Fn::Resources:
+      MyBucket AWS::S3::Bucket Condition=Prod DependsOn=[X,Y,Z]:
+        BucketName: mybucket
+      OtherBucket:
+        Type: AWS::S3::Bucket
+        Condition: Dev
+        Properties:
+          BucketName: otherbucket
+      TemplateBucket: !Let
+        - Name: templatebucket
+        - !Ref BucketTpl
+
+  expected:
+    Resources:
+      MyBucket:
+        Condition: Prod
+        DependsOn:
+          - X
+          - 'Y'
+          - Z
+        Type: AWS::S3::Bucket
+        Properties:
+          BucketName: mybucket
+      OtherBucket:
+        Type: AWS::S3::Bucket
+        Condition: Dev
+        Properties:
+          BucketName: otherbucket
+      TemplateBucket:
+        Type: AWS::S3::Bucket
+        Properties:
+          BucketName: templatebucket
+
+expands Stack resource macros:
+
+  template:
+    Fn::Resources:
+      MyStack Stack:
+        TemplateURL: foop
+        Param1: hello world
+
+  expected:
+    Resources:
+      MyStack:
+        Type: AWS::CloudFormation::Stack
+        Properties:
+          Parameters:
+            Param1: hello world
+          TemplateURL: foop
+
+expands bound templates:
+
+  template:
+    Fn::Let:
+      Tpl:
+        Type: Stack
+        Properties:
+          TemplateURL: foop.yml
+          Param1: !Ref Param1
+    Fn::Resources:
+      Thing1: !Let
+        - Param1: hello world
+        - !Ref Tpl
+      Thing2: !Let
+        - Param1: goodbye world
+        - !Ref Tpl
+
+  expected:
+    Resources:
+      Thing1:
+        Type: AWS::CloudFormation::Stack
+        Properties:
+          Parameters:
+            Param1: hello world
+          TemplateURL: foop.yml
+      Thing2:
+        Type: AWS::CloudFormation::Stack
+        Properties:
+          Parameters:
+            Param1: goodbye world
+          TemplateURL: foop.yml
+
+expands Fn::Return macros:
+
+  template:
+    Fn::Return:
+      Foop: !Ref Foo
+      Barp: !GetAtt Bar.ARN
+
+  expected:
+    Outputs:
+      Foop:
+        Value:
+          Ref: Foo
+      Barp:
+        Value:
+          Fn::GetAtt:
+            - Bar
+            - ARN
+
+packages regular files:
+
+  template:
+    Foo:
+      Bar: !Package data/data1.txt
+      Baz: !Code data/data1.txt
+
+  expected:
+    Foo:
+      Bar: https://s3.amazonaws.com/foop/templates/6f5902ac237024bdd0c176cb93063dc4.txt
+      Baz:
+        S3Bucket: foop
+        S3Key: templates/6f5902ac237024bdd0c176cb93063dc4.txt
+
+runs build scripts before packaging:
+
+  template:
+    Foo:
+      Bar: !Package
+        Path: data/data2.txt
+        Build: 'make -C data data2.txt'
+
+  expected:
+    Foo:
+      Bar: https://s3.amazonaws.com/foop/templates/f54a1fca2d39a6861ed89c203cbabe53.txt
+
+compresses directories before packaging:
+
+  template:
+    Foo:
+      Bar: !Package data/dir
+
+  expected:
+    Foo:
+      Bar: https://s3.amazonaws.com/foop/templates/6806d30eed132b19183a51be47264629.zip
+
+recursively packages templates:
+
+  template:
+    Foo:
+      Bar: !Template data/template.yaml
+
+  expected:
+    Foo:
+      Bar: https://s3.amazonaws.com/foop/templates/152562e187ebf050e458c04712e9a715.yaml
+
+deep merges objects with Fn::DeepMerge:
+
+  template:
+    Test1: !DeepMerge
+      - Foo:
+          Bar: 2
+      - Foo:
+          Baz: 3
+
+  expected:
+    Test1:
+      Foo:
+        Bar: 2
+        Baz: 3
+
+loads template files with Fn::TemplateFile:
+
+  template:
+    Fn::Let:
+      Dir: data
+      Name: config
+
+    Foo: !TemplateFile data/config1.yaml
+    Bar: !DeepMerge [ !TemplateFile data/config1.yaml, !TemplateFile data/config2.yaml ]
+    Baz: !TemplateFile ${Dir}/${Name}3.yaml
+
+  expected:
+    Foo:
+      us-west-2:
+        foo:
+          bar: 100
+    Bar:
+      us-west-2:
+        foo:
+          bar: 200
+          baz: 300
+    Baz:
+      us-west-2:
+        foo:
+          bar: 400
+          baz: 300
+          baf: 500

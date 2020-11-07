@@ -1,0 +1,71 @@
+#!/bin/bash
+
+set -e -o pipefail
+
+mydir="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+. "$mydir/.fns"
+
+usage() {
+  exec 1>&2
+  [[ -n "$1" ]] && echo "$(basename $0): $1" && echo
+  cat <<EOT
+USAGE:
+  $(basename $0) [-hP] [-d <dir>] [-f <file>]
+
+OVERVIEW:
+  Creates the project.tar.gz tarball for deployment. If the -P option is not
+  specified the project's ami/package script will be run before the tarball
+  is created.
+
+  Note: This script must be run from the service submodule directory or the
+  -d <dir> option must be provided with the submodule directory as argument.
+
+OPTIONS:
+  -d <dir>  Change to the <dir> directory before starting work.
+  -f <file> Write tarball to <file> instead of project.tar.gz.
+  -P        Don't run the project ami/package script.
+  -h        Print this and exit.
+EOT
+}
+
+nobuild=false
+outfile=project.tar.gz
+
+while getopts "d:f:hP" o; do
+  case "${o}" in
+    d) cd $OPTARG ;;
+    f) outfile=$OPTARG ;;
+    h) usage ; exit ;;
+    P) nobuild=true ;;
+    *) abort ;;
+  esac
+done
+shift $((OPTIND-1))
+
+in_submodule || abort "must be run in submodule directory (or use -d option)"
+
+tmp1=$(mktemp)
+tmp2=$(mktemp)
+trap "rm -f $tmp1 $tmp2" EXIT
+
+{ $nobuild || [ ! -f ami/package ]; } || {
+  info "Building..."
+  ./ami/package
+}
+
+info "Creating archive..."
+git archive --format tar HEAD > $tmp1
+
+target=$(readlink -f ami/target) || true
+[ ! -d "$target" ] || {
+  info "Adding target dir..."
+  tar cf $tmp2 "$(relpath "$target")"
+  tar Af $tmp1 $tmp2
+}
+
+info "Gzipping..."
+cat $tmp1 |gzip -9 > $tmp2
+
+mv $tmp2 $outfile
+
+success "Package created: $outfile"
