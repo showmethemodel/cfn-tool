@@ -178,7 +178,6 @@ class CfnTransformer extends YamlTransformer
       [   '!Ref'          ,   'Ref'               ,   'mapping'    ]
       [   '!Ref'          ,   'Ref'               ,   'sequence'   ]
       [   '!File'         ,   'Fn::File'          ,   'scalar'     ]
-      [   '!TemplateFile' ,   'Fn::TemplateFile'  ,   'scalar'     ]
       [   '!Attr'         ,   'Fn::Attr'          ,   'scalar'     ]
       [   '!Var'          ,   'Fn::Var'           ,   'scalar'     ]
       [   '!Env'          ,   'Fn::Env'           ,   'scalar'     ]
@@ -186,13 +185,13 @@ class CfnTransformer extends YamlTransformer
       [   '!Package'      ,   'Fn::Package'       ,   'mapping'    ]
       [   '!Template'     ,   'Fn::Template'      ,   'scalar'     ]
       [   '!Template'     ,   'Fn::Template'      ,   'mapping'    ]
+      [   '!TemplateFile' ,   'Fn::TemplateFile'  ,   'scalar'     ]
       [   '!Code'         ,   'Fn::Code'          ,   'scalar'     ]
       [   '!Code'         ,   'Fn::Code'          ,   'mapping'    ]
       [   '!Get'          ,   'Fn::Get'           ,   'scalar'     ]
       [   '!Get'          ,   'Fn::Get'           ,   'sequence'   ]
       [   '!Let'          ,   'Fn::Let'           ,   'sequence'   ]
       [   '!Let'          ,   'Fn::Let'           ,   'mapping'    ]
-      [   '!Resource'     ,   'Fn::Resource'      ,   'mapping'    ]
       [   '!Merge'        ,   'Fn::Merge'         ,   'sequence'   ]
       [   '!DeepMerge'    ,   'Fn::DeepMerge'     ,   'sequence'   ]
       [   '!Tags'         ,   'Fn::Tags'          ,   'mapping'    ]
@@ -202,6 +201,8 @@ class CfnTransformer extends YamlTransformer
       [   '!Json'         ,   'Fn::Json'          ,   'scalar'     ]
       [   '!Json'         ,   'Fn::Json'          ,   'mapping'    ]
       [   '!Json'         ,   'Fn::Json'          ,   'sequence'   ]
+      [   '!Require'      ,   'Fn::Require'       ,   'scalar'     ]
+      [   '!Require'      ,   'Fn::Require'       ,   'sequence'   ]
     ].forEach ([short, long, kind]) =>
       @deftag(short, kind, (form) -> hashMap(long, form))
 
@@ -218,6 +219,11 @@ class CfnTransformer extends YamlTransformer
       else
         merge(peek(@bindstack), assertObject(@walk(form)))
         null
+
+    @defmacro 'Fn::Require', (form) =>
+      form = [form] unless isArray(form)
+      require(path.resolve(v)).init(@) for v in form
+      null
 
     @defmacro 'Fn::Parameters', (form) =>
       Parameters: form.reduce(((xs, param) =>
