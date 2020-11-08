@@ -40,9 +40,9 @@ _cfn_prompt_command() {
   status=$([ $ret -eq 0 ] && echo "${green}OK${none} " || echo "${red}ERR${none} ")
   region=${AWS_DEFAULT_REGION:+$blue$AWS_DEFAULT_REGION$none }
   gitbranch=
-  gitbranch=$(git symbolic-ref --short -q HEAD)
-  gitsha="${gitbranch:+${gitbranch}@}$(git rev-parse --short HEAD)"
-  gitdirty=$(git diff-files --quiet && echo $cyan || echo $orange)
+  gitbranch=$(git symbolic-ref --short -q HEAD 2>/dev/null)
+  gitsha="${gitbranch:+${gitbranch}@}$(git rev-parse --short HEAD 2>/dev/null)"
+  gitdirty=$(git diff-files --quiet 2>/dev/null && echo $cyan || echo $orange)
   gitinfo=${gitsha:+${gitdirty}${gitsha}${none} }
   curdir="${yellow}${PWD/#$HOME/~}${none}"
   host=${HOSTNAME%%.*}
