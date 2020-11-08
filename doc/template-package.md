@@ -71,6 +71,28 @@ Top level macros are used at the top level of the template, i.e. the main
 sections of the template. Due to the way the YAML parser works these macros
 are not used in short form (eg. `!Foo`).
 
+### `Fn::Require`
+
+The `!Require` macro can be used to add new macro definitions to the parser.
+The macros defined this way will not have short tags because the YAML parser
+parses those at read time. Macro definition files can be CoffeeScript or
+JavaScript.
+
+```coffeescript
+# ./lib/macros.coffee
+module.exports.init = (xform) ->
+  xform.defmacro 'Fn::UpperCase', (form) -> form.toUpperCase()
+```
+```yaml
+# INPUT
+Fn::Require: ./lib/macros
+Foo: { Fn::UpperCase: asdf }
+```
+```yaml
+# OUTPUT
+Foo: ASDF
+```
+
 ### `Fn::Resources`
 
 The basic [CloudFormation resource structure][1] has the following form:
@@ -389,6 +411,33 @@ Baf: { 'Fn::GetAtt': [ Thing, Outputs.StreamName ] }
 
 ## Other Useful Macros
 
+### `!Let`
+
+The `!Let` macro can be used to expand simple templates within the template
+file. The first argument is the bindings, the second is the template. Note
+that bindings within the template are [dynamic][13].
+
+```yaml
+# INPUT
+Fn::Let:
+  Template:
+    IAm: a person
+    MyNameIs: !Ref Name
+    MyAgeIs: !Ref Age
+
+Foo: !Let
+  - Name: alice
+    Age: 100
+  - !Ref Template
+```
+```yaml
+# OUTPUT
+Foo:
+  IAm: a person
+  MyNameIs: alice
+  MyAgeIs: 100
+```
+
 ### `!Merge`
 
 Performs a shallow merge of two or more maps, at compile time:
@@ -517,25 +566,6 @@ Resources:
       Tags:
         - { Key: ThreatLevel, Value: infinity }
         - { Key: Maximumness, Value: enforced }
-```
-
-## Macro Definition Extensions
-
-The `!Require` macro can be used to add new macro definitions to the parser.
-
-```coffeescript
-# ./lib/macros.coffee
-module.exports.init = (xform) ->
-  xform.defmacro 'Fn::UpperCase', (form) -> form.toUpperCase()
-```
-```yaml
-# INPUT
-Fn::Require: ./lib/macros
-Foo: { Fn::UpperCase: asdf }
-```
-```yaml
-# OUTPUT
-Foo: ASDF
 ```
 
 [1]: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/resources-section-structure.html
