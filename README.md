@@ -629,7 +629,7 @@ Resources:
 [3]: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/intrinsic-function-reference-importvalue.html
 [4]: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/intrinsic-function-reference-sub.html
 [5]: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-stack.html
-[6]: ../root/usr/src/template-package/lib/cfn-transformer.coffee
+[6]: root/usr/src/template-package/lib/cfn-transformer.coffee
 [7]: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/intrinsic-function-reference-ref.html
 [8]: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/intrinsic-function-reference-getatt.html
 [9]: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/intrinsic-function-reference-transform.html
@@ -639,4 +639,4 @@ Resources:
 [13]: https://www.gnu.org/software/emacs/manual/html_node/elisp/Dynamic-Binding.html
 [14]: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-lambda-function.html
 [15]: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-stack.html#cfn-cloudformation-stack-templateurl
-[16]: ../root/usr/src/template-package/test/cfn-transformer/cfn-transformer.tests.yaml
+[16]: root/usr/src/template-package/test/cfn-transformer/cfn-transformer.tests.yaml
