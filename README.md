@@ -360,6 +360,18 @@ Config:
     Bar: baz
 ```
 
+A nice trick is to combine a few macros to pull in default mappings which can
+be overridden in the template:
+
+```yaml
+Mappings:
+  !DeepMerge
+    - !TemplateFile ../config/${$Zone}.yml
+    - Map1:
+        us-east-1:
+          Prop3: override
+```
+
 ## References
 
 These macros reduce the boilerplate associated with references of various kinds
