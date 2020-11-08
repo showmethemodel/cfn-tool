@@ -45,7 +45,7 @@ _cfn_prompt_command() {
   gitdirty=$(git diff-files --quiet 2>/dev/null && echo $cyan || echo $orange)
   gitinfo=${gitsha:+${gitdirty}${gitsha}${none} }
   curdir="${yellow}${PWD/#$HOME/~}${none}"
-  host=${HOSTNAME%%.*}
+  host=cfn-tools
   symbol=$([ $UID -eq 0 ] && echo '#' || echo '$')
 
   PS1=$(echo -ne "\n${status}${region}${gitinfo}${curdir}\n${host} $symbol ")
