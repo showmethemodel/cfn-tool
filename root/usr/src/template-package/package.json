@@ -10,7 +10,7 @@
   "dependencies": {
     "coffeescript": "2.5.1",
     "getopts": "2.2.5",
-    "js-yaml": "3.14.0",
+    "js-yaml": "showmethemodel/js-yaml#smtm",
     "uuid": "8.3.0"
   },
   "devDependencies": {

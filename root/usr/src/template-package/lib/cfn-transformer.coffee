@@ -150,95 +150,52 @@ class CfnTransformer extends YamlTransformer
     @resourceMacros = []
     @bindstack      = []
 
-    [ # Cloudformation-supported tags:
-      [   '!Base64'       ,   'Fn::Base64'        ,   'scalar'     ]
-      [   '!Base64'       ,   'Fn::Base64'        ,   'mapping'    ]
-      [   '!FindInMap'    ,   'Fn::FindInMap'     ,   'sequence'   ]
-      [   '!GetAtt'       ,   'Fn::GetAtt'        ,   'sequence'   ]
-      [   '!GetAZs'       ,   'Fn::GetAZs'        ,   'scalar'     ]
-      [   '!GetAZs'       ,   'Fn::GetAZs'        ,   'mapping'    ]
-      [   '!ImportValue'  ,   'Fn::ImportValue'   ,   'scalar'     ]
-      [   '!ImportValue'  ,   'Fn::ImportValue'   ,   'mapping'    ]
-      [   '!Join'         ,   'Fn::Join'          ,   'sequence'   ]
-      [   '!Select'       ,   'Fn::Select'        ,   'sequence'   ]
-      [   '!Sub'          ,   'Fn::Sub'           ,   'scalar'     ]
-      [   '!Sub'          ,   'Fn::Sub'           ,   'sequence'   ]
-      [   '!Sub'          ,   'Fn::Sub'           ,   'mapping'    ]
-      [   '!Split'        ,   'Fn::Split'         ,   'sequence'   ]
-      [   '!Ref'          ,   'Ref'               ,   'scalar'     ]
-      [   '!Cidr'         ,   'Fn::Cidr'          ,   'sequence'   ]
-      [   '!Cidr'         ,   'Fn::Cidr'          ,   'mapping'    ]
-      [   '!GetParam'     ,   'Fn::GetParam'      ,   'sequence'   ]
-      [   '!And'          ,   'Fn::And'           ,   'sequence'   ]
-      [   '!Equals'       ,   'Fn::Equals'        ,   'sequence'   ]
-      [   '!If'           ,   'Fn::If'            ,   'sequence'   ]
-      [   '!Not'          ,   'Fn::Not'           ,   'sequence'   ]
-      [   '!Or'           ,   'Fn::Or'            ,   'sequence'   ]
-      # Custom tags:
-      [   '!Ref'          ,   'Ref'               ,   'mapping'    ]
-      [   '!Ref'          ,   'Ref'               ,   'sequence'   ]
-      [   '!File'         ,   'Fn::File'          ,   'scalar'     ]
-      [   '!Attr'         ,   'Fn::Attr'          ,   'scalar'     ]
-      [   '!Var'          ,   'Fn::Var'           ,   'scalar'     ]
-      [   '!Env'          ,   'Fn::Env'           ,   'scalar'     ]
-      [   '!Package'      ,   'Fn::Package'       ,   'scalar'     ]
-      [   '!Package'      ,   'Fn::Package'       ,   'mapping'    ]
-      [   '!Template'     ,   'Fn::Template'      ,   'scalar'     ]
-      [   '!Template'     ,   'Fn::Template'      ,   'mapping'    ]
-      [   '!TemplateFile' ,   'Fn::TemplateFile'  ,   'scalar'     ]
-      [   '!Code'         ,   'Fn::Code'          ,   'scalar'     ]
-      [   '!Code'         ,   'Fn::Code'          ,   'mapping'    ]
-      [   '!Get'          ,   'Fn::Get'           ,   'scalar'     ]
-      [   '!Get'          ,   'Fn::Get'           ,   'sequence'   ]
-      [   '!Let'          ,   'Fn::Let'           ,   'sequence'   ]
-      [   '!Let'          ,   'Fn::Let'           ,   'mapping'    ]
-      [   '!Merge'        ,   'Fn::Merge'         ,   'sequence'   ]
-      [   '!DeepMerge'    ,   'Fn::DeepMerge'     ,   'sequence'   ]
-      [   '!Tags'         ,   'Fn::Tags'          ,   'mapping'    ]
-      [   '!Yaml'         ,   'Fn::Yaml'          ,   'scalar'     ]
-      [   '!Yaml'         ,   'Fn::Yaml'          ,   'mapping'    ]
-      [   '!Yaml'         ,   'Fn::Yaml'          ,   'sequence'   ]
-      [   '!Json'         ,   'Fn::Json'          ,   'scalar'     ]
-      [   '!Json'         ,   'Fn::Json'          ,   'mapping'    ]
-      [   '!Json'         ,   'Fn::Json'          ,   'sequence'   ]
-      [   '!Require'      ,   'Fn::Require'       ,   'scalar'     ]
-      [   '!Require'      ,   'Fn::Require'       ,   'sequence'   ]
-    ].forEach ([short, long, kind]) =>
-      @deftag(short, kind, (form) -> hashMap(long, form))
-
-    # Tags with the special dot-splitting behavior:
     [
-      # Cloudformation-supported tags:
-      [   '!GetAtt'       ,   'Fn::GetAtt'        ,   'scalar'     ]
-    ].forEach ([short, long, kind]) =>
-      @deftag(short, kind, (form) -> hashMap(long, split(form, '.', 2)))
+      'Base64'
+      'FindInMap'
+      'GetAZs'
+      'ImportValue'
+      'Select'
+      'Split'
+      'Cidr'
+      'GetArtifactAtt'
+      'GetParam'
+      'And'
+      'Equals'
+      'If'
+      'Not'
+      'Or'
+    ].forEach (x) => @defmacro(x)
 
-    @defspecial 'Fn::Let', (form) =>
+    @defspecial 'Let', (form) =>
       if isArray(form)
         @withBindings(@walk(form[0]), => @walk(form[1]))
       else
         merge(peek(@bindstack), assertObject(@walk(form)))
         null
 
-    @defmacro 'Fn::Require', (form) =>
+    @defmacro 'GetAtt', (form) =>
+      'Fn::GetAtt': if isString(form) then split(form, '.', 2) else form
+
+    @defmacro 'Require', (form) =>
       form = [form] unless isArray(form)
-      require(path.resolve(v)).init(@) for v in form
+      require(path.resolve(v))(@) for v in form
       null
 
-    @defmacro 'Fn::Parameters', (form) =>
+    @defmacro 'Parameters', (form) =>
       Parameters: form.reduce(((xs, param) =>
         [name, opts...] = param.split(/ +/)
         opts = merge({Type: 'String'}, parseKeyOpts(opts))
         merge(xs, hashMap(name, opts))
       ), {})
 
-    @defmacro 'Fn::Return', (form) =>
+    @defmacro 'Return', (form) =>
       Outputs: Object.keys(form).reduce(
         (xs, k) => merge(xs, hashMap(k, {Value: form[k]}))
         {}
       )
 
-    @defmacro 'Fn::Resources', (form) =>
+    @defmacro 'Resources', (form) =>
       ret = {}
       for logicalName, resource of form
         [logicalName, Type, opts...] = logicalName.split(/ +/)
@@ -249,7 +206,7 @@ class CfnTransformer extends YamlTransformer
           if (m = @resourceMacros[Type]) then m(resource) else resource
       Resources: ret
 
-    @defmacro 'Ref', (form) =>
+    @_defform @macros, 'Ref', 'Ref', (form) =>
       if typeOf(form) is 'String'
         [ref, ks...] = form.split('.')
         switch
@@ -260,71 +217,71 @@ class CfnTransformer extends YamlTransformer
           else {'Ref': form}
       else form
 
-    @defmacro 'Fn::Attr', (form) =>
+    @defmacro 'Attr', (form) =>
       {'Fn::GetAtt': split(form, '.', 2).map((x) => {'Fn::Sub': x})}
 
-    @defmacro 'Fn::Get', (form) =>
+    @defmacro 'Get', (form) =>
       form = form.split('.') if isString(form)
       {'Fn::FindInMap': form.map((x) => {'Fn::Sub': x})}
 
-    @defmacro 'Fn::Env', (form) =>
+    @defmacro 'Env', (form) =>
       ret = process.env[form]
       assert.ok(ret?, "required environment variable not set: #{form}")
       ret
 
-    @defmacro 'Fn::Var', (form) =>
+    @defmacro 'Var', (form) =>
       {'Fn::ImportValue': {'Fn::Sub': form}}
 
-    @defmacro 'Fn::Package', (form) =>
+    @defmacro 'Package', (form) =>
       form = {Path: form} if isString(form)
       {Path, Build} = form
       execShell(Build) if Build
       (if isDirectory(Path) then @writeDir(Path) else @writeFile(Path)).s3uri
 
-    @defmacro 'Fn::Code', (form) =>
+    @defmacro 'Code', (form) =>
       form = {Path: form} if isString(form)
       {Path, Build} = form
       execShell(Build) if Build
       (if isDirectory(Path) then @writeDir(Path) else @writeFile(Path)).code
 
-    @defmacro 'Fn::Template', (form) =>
+    @defmacro 'Template', (form) =>
       form = {Path: form} if isString(form)
       {Path, Build} = form
       execShell(Build) if Build
       @writeTemplate(Path).s3uri
 
-    @defmacro 'Fn::Yaml', (form) =>
+    @defmacro 'Yaml', (form) =>
       if isString(form) then yaml.safeLoad(form) else yaml.safeDump(form)
 
-    @defmacro 'Fn::Json', (form) =>
+    @defmacro 'Json', (form) =>
       if isString(form) then JSON.parse(form) else JSON.stringify(form)
 
-    @defmacro 'Fn::File', (form) =>
+    @defmacro 'File', (form) =>
       fs.readFileSync(form)
 
-    @defmacro 'Fn::TemplateFile', (form) =>
+    @defmacro 'TemplateFile', (form) =>
       form = @walk(@macros['Fn::Sub'](form))
       yaml.safeLoad(@transformTemplateFile(form))
 
-    @defmacro 'Fn::Merge', (form) =>
+    @defmacro 'Merge', (form) =>
       merge.apply(null, form)
 
-    @defmacro 'Fn::DeepMerge', (form) =>
+    @defmacro 'DeepMerge', (form) =>
       deepMerge.apply(null, form)
 
-    @defmacro 'Fn::Sub', (form) =>
+    @defmacro 'Sub', (form) =>
       switch typeOf(form)
         when 'String' then {'Fn::Join': ['', interpolateSub(form)]}
         else {'Fn::Sub': form}
 
-    @defmacro 'Fn::Join', (form) =>
+    @defmacro 'Join', (form) =>
       [sep, toks] = form
       switch (xs = mergeStrings(toks, sep)).length
         when 0 then ''
         when 1 then xs[0]
         else {'Fn::Join': [sep, xs]}
 
-    @defmacro 'Fn::Tags', (form) =>
+    @defmacro 'Tags', (form) =>
       {Key: k, Value: form[k]} for k in Object.keys(form)
 
     @defresource 'Stack', (form) =>

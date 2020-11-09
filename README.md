@@ -130,19 +130,18 @@ are not used in short form (eg. `!Foo`).
 ### `Fn::Require`
 
 The `!Require` macro can be used to add new macro definitions to the parser.
-The macros defined this way will not have short tags because the YAML parser
-parses those at read time. Macro definition files can be CoffeeScript or
-JavaScript.
+Macro definition files can be JavaScript or CoffeeScript.
 
 ```coffeescript
-# ./lib/macros.coffee
-module.exports.init = (xform) ->
-  xform.defmacro 'Fn::UpperCase', (form) -> form.toUpperCase()
+# ./lib/macros.js
+module.exports = (compiler) => {
+  compiler.defmacro('UpperCase', (form) => form.toUpperCase());
+};
 ```
 ```yaml
 # INPUT
 Fn::Require: ./lib/macros
-Foo: { Fn::UpperCase: asdf }
+Foo: !UpperCase: asdf
 ```
 ```yaml
 # OUTPUT

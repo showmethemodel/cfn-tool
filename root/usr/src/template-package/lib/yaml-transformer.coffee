@@ -83,23 +83,28 @@ class YamlTransformer
     @keystack.pop()
     ret
 
-  deftag: (tag, kind, emit) ->
-    @tags.push(new yaml.Type(tag, {kind, construct: emit}))
+  deftag: (tag, long) ->
+    emit = (form) -> hashMap(long, form)
+    for kind in ['scalar', 'sequence', 'mapping']
+      @tags.push(new yaml.Type(tag, {kind, construct: emit}))
     @
 
-  defspecial: (key, emit) ->
-    @specials[key] = (args...) =>
-      try
-        emit.apply(null, args)
-      catch e then @abort(e.message)
+  _defform: (namespace, tag, long, emit) ->
+    short = "!#{tag}"
+    long ?= "Fn::#{tag}"
+    @deftag(short, long)
+    if emit
+      namespace[long] = (args...) =>
+        try
+          emit.apply(null, args)
+        catch e then @abort(e.message)
     @
 
-  defmacro: (key, emit) ->
-    @macros[key] = (args...) =>
-      try
-        emit.apply(null, args)
-      catch e then @abort(e.message)
-    @
+  defspecial: (tag, emit) ->
+    @_defform(@specials, tag, null, emit)
+
+  defmacro: (tag, emit) ->
+    @_defform(@macros, tag, null, emit)
 
   parse: (textOrDoc) ->
     return textOrDoc if typeOf(textOrDoc) isnt 'String'

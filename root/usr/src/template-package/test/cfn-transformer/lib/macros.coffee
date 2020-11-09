@@ -1,2 +1,2 @@
-module.exports.init = (xform) ->
-  xform.defmacro 'Fn::UpperCase', (form) -> form.toUpperCase()
+module.exports = (xform) ->
+  xform.defmacro 'UpperCase', (form) -> form.toUpperCase()
