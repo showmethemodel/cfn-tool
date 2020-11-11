@@ -57,8 +57,8 @@ stack-log dev-core
 
 ## Template Macros
 
-The `template-package` program provides preprocessor macros and handles the
-packaging, compression, and upload of templates and zip files to S3 for use
+The [`template-package`][20] program provides preprocessor macros and handles
+the packaging, compression, and upload of templates and zip files to S3 for use
 in CloudFormation stacks. The packager/preprocessor is invoked automatically
 when `stack-deploy` is used. See the [tests][16] for more examples.
 
@@ -180,9 +180,8 @@ Fn::Resources:
     <PropertyKey>: <PropertyValue>
 ```
 
-The resource structure also includes top-level fields (eg. `Condition`,
-`DependsOn`, etc.) which may be included as perperties or as `<Field>=<Value>`
-pairs.
+The macro resource DSL also includes top-level fields (eg. [`Condition`][18],
+[`DependsOn`][19], etc.) which may be included as `<Field>=<Value>` pairs:
 
 ```yaml
 # INPUT
@@ -190,7 +189,6 @@ Fn::Resources:
   MyService AWS::AutoScaling::AutoScalingGroup Condition=CreateMyService DependsOn=[Bar,Baz]:
     AutoScalingGroupName: !Sub 'delivery-${Zone}-MyService'
     LaunchConfigurationName: !Ref MyServiceLaunchConfig
-    UpdatePolicy: { AutoScalingScheduledAction: { IgnoreUnmodifiedGroupSizeProperties: true } }
 ```
 ```yaml
 # OUTPUT
@@ -202,7 +200,6 @@ Resources:
     Properties:
       AutoScalingGroupName: !Sub 'delivery-${Zone}-MyService'
       LaunchConfigurationName: !Ref MyServiceLaunchConfig
-    UpdatePolicy: { AutoScalingScheduledAction: { IgnoreUnmodifiedGroupSizeProperties: true } }
 ```
 
 ### `Fn::Let`
@@ -670,3 +667,6 @@ Resources:
 [15]: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-stack.html#cfn-cloudformation-stack-templateurl
 [16]: root/usr/src/template-package/test/cfn-transformer/cfn-transformer.tests.yaml
 [17]: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/template-anatomy.html
+[18]: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/conditions-section-structure.html
+[19]: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-attribute-dependson.html
+[20]: blob/master/root/usr/src/template-package/index.js
