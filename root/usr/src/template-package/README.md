@@ -1,5 +1,3 @@
-# `template-package`
-
 ```
 USAGE:
     template-package [OPTIONS...] <template-file>
