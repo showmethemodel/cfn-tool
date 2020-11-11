@@ -159,9 +159,6 @@ Fn::Require:
   - ./lib/loop-macros
 ```
 
-> **Note:** `Fn::Require` adds global macro definitions &mdash; the macros
-> added in this way are defined in all templates.
-
 ### `Fn::Resources`
 
 The basic [CloudFormation resource structure][1] has the following form:
