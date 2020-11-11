@@ -669,4 +669,4 @@ Resources:
 [17]: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/template-anatomy.html
 [18]: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/conditions-section-structure.html
 [19]: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-attribute-dependson.html
-[20]: root/usr/src/template-package/index.js
+[20]: root/usr/src/template-package/
