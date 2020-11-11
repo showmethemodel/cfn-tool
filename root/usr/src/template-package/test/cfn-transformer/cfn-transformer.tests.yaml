@@ -292,7 +292,7 @@ compresses directories before packaging:
 
   expected:
     Foo:
-      Bar: https://s3.amazonaws.com/foop/templates/aa389ae2e16fe43cf6f3868448a16cc7.zip
+      Bar: https://s3.amazonaws.com/foop/templates/212cb4011560c3081d1fe2e6ab48c747.zip
 
 recursively packages templates:
 

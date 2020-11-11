@@ -123,19 +123,22 @@ syntactically valid YAML in merge context.
 
 ## Top Level Macros
 
-Top level macros are used at the top level of the template, i.e. the main
-sections of the template. Due to the way the YAML parser works these macros
-are not used in short form (eg. `!Foo`).
+Top level macros are used at the top level of the template, to transform the
+[main sections][17] of the template or to execute top level compiler commands.
+Top level macros must be used in the long form (eg. `Fn::Foo`), not the short
+form (eg.  `!Foo`).
 
 ### `Fn::Require`
 
-The `!Require` macro can be used to add new macro definitions to the parser.
-Macro definition files can be JavaScript or CoffeeScript.
+The `!Require` macro can be used to add global macro definitions to the parser.
+Macro definitions are implemented in JavaScript or CoffeeScript, and are defined
+in all templates, including nested ones.
 
-```coffeescript
-# ./lib/macros.js
+```javascript
+// ./lib/case-macros.js
 module.exports = (compiler) => {
   compiler.defmacro('UpperCase', (form) => form.toUpperCase());
+  compiler.defmacro('LowerCase', (form) => form.toLowerCase());
 };
 ```
 ```yaml
@@ -147,6 +150,17 @@ Foo: !UpperCase: asdf
 # OUTPUT
 Foo: ASDF
 ```
+
+The `!Require` macro also accepts an array of definition files:
+
+```yaml
+Fn::Require:
+  - ./lib/case-macros
+  - ./lib/loop-macros
+```
+
+> **Note:** `Fn::Require` adds global macro definitions &mdash; the macros
+> added in this way are defined in all templates.
 
 ### `Fn::Resources`
 
@@ -185,7 +199,7 @@ Fn::Resources:
 # OUTPUT
 Resources:
   MyService:
-    Type: 'AWS::AutoScaling::AutoScalingGroup'
+    Type: AWS::AutoScaling::AutoScalingGroup
     Condition: CreateMyService
     DependsOn: [ Bar, Baz ]
     Properties:
@@ -204,22 +218,16 @@ replaced by the bound expression. This works in all constructs supporting
 ```yaml
 # INPUT
 Fn::Let:
-  Foo: !If [ SomeCondition, default, !Ref FooParam ] # bind an expression to Foo
-
-Fn::Resources:
-  MyBucket AWS::S3::Bucket:
-    BucketName: !Ref Foo # emit the expression bound to Foo
+  MyBinding: !If [ SomeCondition, Baz, !Ref Baf ] # binds expression to MyBinding
+Foo: !Ref MyBinding # reference the bound expression
 ```
 ```yaml
 # OUTPUT
-Resources:
-  MyBucket:
-    Type: 'AWS::S3::Bucket'
-    Properties:
-      BucketName: !If [ SomeCondition, default, !Ref FooParam ]
+Foo: !If [ SomeCondition, Baz, !Ref Baf ] # expands the bound expression
 ```
 
-Note: References in the values of the `Fn::Let` form are [dynamic bindings][13].
+> **Note:** References in the values of the `Fn::Let` form are
+> [dynamic bindings][13], see [`!Let`](#let) below.
 
 ### `Fn::Parameters`
 
@@ -479,8 +487,8 @@ Baf: !Ref '@Thing.Outputs.StreamName'
 # OUTPUT
 Foo: { Ref: Zone }
 Bar: micha
-Baz: { 'Fn::FindInMap': [ Config, { Ref: 'AWS::Region' }, MainVpcSubnet ] }
-Baf: { 'Fn::GetAtt': [ Thing, Outputs.StreamName ] }
+Baz: { Fn::FindInMap: [ Config, { Ref: AWS::Region }, MainVpcSubnet ] }
+Baf: { Fn::GetAtt: [ Thing, Outputs.StreamName ] }
 ```
 
 > **Note:** The `Ref` function is used by all other functions that support
@@ -639,7 +647,7 @@ Resources:
 # OUTPUT
 Resources:
   Foo:
-    Type: 'AWS::S3::Bucket'
+    Type: AWS::S3::Bucket
     Properties:
       BucketName: foo-bucket
       Tags:
@@ -663,3 +671,4 @@ Resources:
 [14]: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-lambda-function.html
 [15]: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-stack.html#cfn-cloudformation-stack-templateurl
 [16]: root/usr/src/template-package/test/cfn-transformer/cfn-transformer.tests.yaml
+[17]: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/template-anatomy.html

@@ -206,7 +206,7 @@ class CfnTransformer extends YamlTransformer
           if (m = @resourceMacros[Type]) then m(resource) else resource
       Resources: ret
 
-    @_defform @macros, 'Ref', 'Ref', (form) =>
+    @defmacro 'Ref', 'Ref', (form) =>
       if typeOf(form) is 'String'
         [ref, ks...] = form.split('.')
         switch

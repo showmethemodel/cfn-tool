@@ -100,11 +100,13 @@ class YamlTransformer
         catch e then @abort(e.message)
     @
 
-  defspecial: (tag, emit) ->
-    @_defform(@specials, tag, null, emit)
+  defspecial: (tag, long, emit) ->
+    [long, emit] = [emit, long] unless emit
+    @_defform(@specials, tag, long, emit)
 
-  defmacro: (tag, emit) ->
-    @_defform(@macros, tag, null, emit)
+  defmacro: (tag, long, emit) ->
+    [long, emit] = [emit, long] unless emit
+    @_defform(@macros, tag, long, emit)
 
   parse: (textOrDoc) ->
     return textOrDoc if typeOf(textOrDoc) isnt 'String'
