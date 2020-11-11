@@ -216,6 +216,7 @@ replaced by the bound expression. This works in all constructs supporting
 # INPUT
 Fn::Let:
   MyBinding: !If [ SomeCondition, Baz, !Ref Baf ] # binds expression to MyBinding
+
 Foo: !Ref MyBinding # reference the bound expression
 ```
 ```yaml
