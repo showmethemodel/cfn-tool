@@ -284,8 +284,8 @@ packages regular files:
 
   template:
     Foo:
-      Bar: !Package data/data1.txt
-      Baz: !PackageMap data/data1.txt
+      Bar: !PackageURL data/data1.txt
+      Baz: !Package data/data1.txt
       Baf: !PackageURI data/data1.txt
 
   expected:
@@ -300,7 +300,7 @@ runs build scripts before packaging:
 
   template:
     Foo:
-      Bar: !Package
+      Bar: !PackageURL
         Path: data/data2.txt
         Build: 'make -C data data2.txt'
 
@@ -308,25 +308,11 @@ runs build scripts before packaging:
     Foo:
       Bar: https://s3.amazonaws.com/foop/templates/f54a1fca2d39a6861ed89c203cbabe53.txt
 
-expands custom AsMap result:
-
-  template:
-    Foo: !Package
-      Path: data/data1.txt
-      AsMap:
-        Bucket: !Ref S3Bucket
-        Key: !Ref S3Key
-
-  expected:
-    Foo:
-      Bucket: foop
-      Key: templates/6f5902ac237024bdd0c176cb93063dc4.txt
-
 compresses directories before packaging:
 
   template:
     Foo:
-      Bar: !Package data/dir
+      Bar: !PackageURL data/dir
 
   expected:
     Foo:
@@ -336,7 +322,7 @@ recursively packages templates:
 
   template:
     Foo:
-      Bar: !PackageTemplate data/template.yaml
+      Bar: !PackageTemplateURL data/template.yaml
 
   expected:
     Foo:

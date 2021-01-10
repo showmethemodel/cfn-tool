@@ -263,35 +263,34 @@ class CfnTransformer extends YamlTransformer
 
     @defmacro 'Package', (form) =>
       form = {Path: form} if isString(form)
-      {Path, Build, AsMap, Parse} = form
+      {Path, Build, Parse} = form
       execShell(Build) if Build
-      ret = if isDirectory(Path)
-        @writeDir(Path)
-      else if Parse
-        @writeTemplate(Path)
-      else
-        @writeFile(Path)
-      return if not (AsMap? or AsMap)
-        ret.s3uri
-      else if isBoolean(AsMap)
-        ret.code
-      else
-        @walk {'Fn::Let': [ret.code, AsMap]}
+      (
+        if isDirectory(Path)
+          @writeDir(Path)
+        else if Parse
+          @writeTemplate(Path)
+        else
+          @writeFile(Path)
+      ).code
+
+    @defmacro 'PackageURL', (form) =>
+      @walk
+        'Fn::Let': [
+          {'Fn::Package': form}
+          {'Fn::Sub': 'https://s3.amazonaws.com/${S3Bucket}/${S3Key}'}
+        ]
 
     @defmacro 'PackageURI', (form) =>
-      form = {Path: form} if isString(form)
-      form = Object.assign({AsMap: {'Fn::Sub': 's3://${S3Bucket}/${S3Key}'}}, form)
-      @walk {'Fn::Package': form}
+      @walk
+        'Fn::Let': [
+          {'Fn::Package': form}
+          {'Fn::Sub': 's3://${S3Bucket}/${S3Key}'}
+        ]
 
-    @defmacro 'PackageMap', (form) =>
+    @defmacro 'PackageTemplateURL', (form) =>
       form = {Path: form} if isString(form)
-      form = Object.assign({AsMap: true}, form)
-      @walk {'Fn::Package': form}
-
-    @defmacro 'PackageTemplate', (form) =>
-      form = {Path: form} if isString(form)
-      form = Object.assign({Parse: true}, form)
-      @walk {'Fn::Package': form}
+      @walk {'Fn::PackageURL': Object.assign({Parse: true}, form)}
 
     @defmacro 'Yaml', (form) =>
       if isString(form) then yaml.safeLoad(form) else yaml.safeDump(form)
