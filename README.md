@@ -332,7 +332,7 @@ Foop:
   Key: templates/6806d30eed132b19183a51be47264629.zip
 ```
 
-### `PackageURI`
+### `!PackageURI`
 
 This macro is an alias for `!Package` with `AsMap` set to
 `!Sub 's3://${S3Bucket}/${S3Key}'`.
