@@ -270,31 +270,31 @@ Outputs:
 ## Templates, Packages, Build Steps, And Files
 
 Some CloudFormation resources (eg. [nested stacks][5], [Lambda functions][14])
-refer to other resources that must be uploaded to S3. The [`!Template`](#template)
+refer to other resources that must be uploaded to S3. The [`!PackageTemplate`](#packagetemplate)
 and [`!Package`](#package) macros are provided to make this easier. Arbitrary
 build steps can be executed to build the resource before parsing or uploading
 to S3.
 
 ### `!Package`
 
-This macro uploads a file or directory to S3 and returns the S3 URI of the
-uploaded file. Directories are zipped before upload. A number of options are
-supported, as well:
+This macro uploads a file or directory to S3 and returns the S3 HTTPS URL of
+the uploaded file. Directories are zipped before upload. A number of options
+are supported, as well:
 
 * **`Path`** &mdash; The path of the file/directory to upload, relative to this template.
 * **`Build`** &mdash; A command (bash script) to execute before packaging.
 * **`Parse`** &mdash; If `true`, recursively parse the file and expand macros before packaging (and after building).
 * **`AsMap`** &mdash; If `true` returns `{S3Bucket,S3Key}`, else expands the value with `S3Bucket` and `S3Key` bound.
 
-A simple example, expands to an S3 URI:
+A simple example, expands to an S3 HTTPS URL:
 
 ```yaml
 # INPUT
-Code: !Package foo/
+Foop: !Package foo/
 ```
 ```yaml
 # OUTPUT
-Code: https://s3.amazonaws.com/mybucket/templates/6806d30eed132b19183a51be47264629.zip
+Foop: https://s3.amazonaws.com/mybucket/templates/6806d30eed132b19183a51be47264629.zip
 ```
 
 With a build step, expands to a `{S3Bucket,S3Key}` map:
@@ -332,13 +332,47 @@ Foop:
   Key: templates/6806d30eed132b19183a51be47264629.zip
 ```
 
+### `PackageURI`
+
+This macro is an alias for `!Package` with `AsMap` set to
+`!Sub 's3://${S3Bucket}/${S3Key}'`.
+
+```yaml
+# INPUT
+Foop: !PackageURI foo/
+```
+```yaml
+# OUTPUT
+Foop: s3://mybucket/templates/6806d30eed132b19183a51be47264629.zip
+```
+
 ### `!PackageMap`
 
 This macro is an alias for `!Package` with `AsMap` set to `true`.
 
+```yaml
+# INPUT
+Foop: !PackageMap foo/
+```
+```yaml
+# OUTPUT
+Foop:
+  S3Bucket: mybucket
+  S3Key: templates/6806d30eed132b19183a51be47264629.zip
+```
+
 ### `!PackageTemplate`
 
 This macro is an alias for `!Package` with `Parse` set to `true`.
+
+```yaml
+# INPUT
+Foop: !PackageTemplate infra/mytemplate.yml
+```
+```yaml
+# OUTPUT
+Foop: https://s3.amazonaws.com/mybucket/templates/6806d30eed132b19183a51be47264629.yaml
+```
 
 ### `!TemplateFile`
 

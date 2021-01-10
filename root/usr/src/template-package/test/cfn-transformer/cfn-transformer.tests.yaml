@@ -264,6 +264,7 @@ packages regular files:
     Foo:
       Bar: !Package data/data1.txt
       Baz: !PackageMap data/data1.txt
+      Baf: !PackageURI data/data1.txt
 
   expected:
     Foo:
@@ -271,6 +272,7 @@ packages regular files:
       Baz:
         S3Bucket: foop
         S3Key: templates/6f5902ac237024bdd0c176cb93063dc4.txt
+      Baf: s3://foop/templates/6f5902ac237024bdd0c176cb93063dc4.txt
 
 runs build scripts before packaging:
 
@@ -306,7 +308,7 @@ compresses directories before packaging:
 
   expected:
     Foo:
-      Bar: https://s3.amazonaws.com/foop/templates/64497a9963193e6fc806d023a0449876.zip
+      Bar: https://s3.amazonaws.com/foop/templates/bedf38fa6b8121334754efbdb9666fad.zip
 
 recursively packages templates:
 

@@ -250,6 +250,11 @@ class CfnTransformer extends YamlTransformer
       else
         @walk {'Fn::Let': [ret.code, AsMap]}
 
+    @defmacro 'PackageURI', (form) =>
+      form = {Path: form} if isString(form)
+      form = Object.assign({AsMap: {'Fn::Sub': 's3://${S3Bucket}/${S3Key}'}}, form)
+      @walk {'Fn::Package': form}
+
     @defmacro 'PackageMap', (form) =>
       form = {Path: form} if isString(form)
       form = Object.assign({AsMap: true}, form)
