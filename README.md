@@ -143,7 +143,7 @@ module.exports = (compiler) => {
 ```
 ```yaml
 # INPUT
-Fn::Require: ./lib/macros
+Fn::Require: ./lib/case-macros
 Foo: !UpperCase: asdf
 ```
 ```yaml
