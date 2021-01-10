@@ -295,7 +295,7 @@ A build step can be executed prior to uploading to S3:
 ```yaml
 TemplateURL: !Template
   Build: 'make -C foo'
-  File: foo/template.yml
+  Path: foo/template.yml
 ```
 
 ### `!Package`
@@ -318,7 +318,7 @@ As above, a build step can be executed prior to zipping and uploading to S3:
 ```yaml
 TemplateURL: !Package
   Build: 'make -C foo'
-  File: foo/
+  Path: foo/
 ```
 
 ### `!Code`
