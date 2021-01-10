@@ -144,11 +144,13 @@ module.exports = (compiler) => {
 ```yaml
 # INPUT
 Fn::Require: ./lib/case-macros
-Foo: !UpperCase: asdf
+Foo: !UpperCase: AsDf
+Bar: !LowerCase: AsDf
 ```
 ```yaml
 # OUTPUT
 Foo: ASDF
+Bar: asdf
 ```
 
 The `!Require` macro also accepts an array of definition files:

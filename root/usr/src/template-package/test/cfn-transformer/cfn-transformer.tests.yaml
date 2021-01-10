@@ -388,8 +388,10 @@ loads template files with Fn::TemplateFile:
 adds macros with Fn::Require:
 
   template:
-    Fn::Require: ./lib/macros
-    Foo: !UpperCase asdf
+    Fn::Require: ./lib/case-macros
+    Foo: !UpperCase AsDf
+    Bar: !LowerCase AsDf
 
   expected:
     Foo: ASDF
+    Bar: asdf
