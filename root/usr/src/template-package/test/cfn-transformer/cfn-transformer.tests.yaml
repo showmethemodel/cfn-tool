@@ -55,7 +55,7 @@ creates dynamic bindings with Fn::Let:
       MyNameIs: charlie
       MyAgeIs: 0
 
-substitites bindings in Refs:
+substitites bindings in Refs and Subs:
 
   template:
     Fn::Let:
@@ -67,6 +67,7 @@ substitites bindings in Refs:
     Foo: !Ref Binding1
     Bar: !Ref Binding2
     Baz: !Ref Binding3.Key1.Key2
+    Baf: !Sub 'hello ${Binding1} world!'
 
   expected:
     Foo: val1
@@ -75,36 +76,57 @@ substitites bindings in Refs:
       - val3
       - val4
     Baz: 100
+    Baf: hello val1 world!
 
-substitutes env vars in Refs:
+substitutes env vars in Refs and Subs:
 
   template:
     Foo: !Ref '$MY_ENV_VAR'
+    Bar: !Sub 'hello ${$MY_ENV_VAR} world!'
 
   expected:
     Foo: myval
+    Bar: hello myval world!
 
-substitutes mapping lookups in Refs:
+substitutes mapping lookups in Refs and Subs:
 
   template:
     Foo: !Ref '%key.subkey'
+    Bar: !Sub 'hello ${%key.subkey} world!'
 
   expected:
     Foo:
       Fn::FindInMap:
         - key
         - subkey
+    Bar:
+      Fn::Join:
+        - ''
+        - - 'hello '
+          - Fn::FindInMap:
+            - key
+            - subkey
+          - ' world!'
 
-substitutes GetAtt lookups in Refs:
+substitutes GetAtt lookups in Refs and Subs:
 
   template:
     Foo: !Ref '@Thing.ARN'
+    Bar: !Sub 'hello ${@Thing.ARN} world!'
 
   expected:
     Foo:
       Fn::GetAtt:
         - Thing
         - ARN
+    Bar:
+      Fn::Join:
+        - ''
+        - - 'hello '
+          - Fn::GetAtt:
+            - Thing
+            - ARN
+          - ' world!'
 
 ignores Refs it cannot transform:
 
