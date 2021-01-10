@@ -151,6 +151,10 @@ class CfnTransformer extends YamlTransformer
     @resourceMacros = []
     @bindstack      = []
 
+    #=========================================================================#
+    # Define built-in CloudFormation macros (pass through verbatim).          #
+    #=========================================================================#
+
     [
       'Base64'
       'FindInMap'
@@ -168,6 +172,40 @@ class CfnTransformer extends YamlTransformer
       'Or'
     ].forEach (x) => @defmacro(x)
 
+    #=========================================================================#
+    # Redefine and extend built-in CloudFormation macros.                     #
+    #=========================================================================#
+
+    @defmacro 'GetAtt', (form) =>
+      'Fn::GetAtt': if isString(form) then split(form, '.', 2) else form
+
+    @defmacro 'Join', (form) =>
+      [sep, toks] = form
+      switch (xs = mergeStrings(toks, sep)).length
+        when 0 then ''
+        when 1 then xs[0]
+        else {'Fn::Join': [sep, xs]}
+
+    @defmacro 'Ref', 'Ref', (form) =>
+      if typeOf(form) is 'String'
+        [ref, ks...] = form.split('.')
+        switch
+          when form.startsWith('$')     then {'Fn::Env': form[1..]}
+          when form.startsWith('%')     then {'Fn::Get': form[1..]}
+          when form.startsWith('@')     then {'Fn::Attr': form[1..]}
+          when peek(@bindstack)[ref]?   then getIn(peek(@bindstack)[ref], ks)
+          else {'Ref': form}
+      else form
+
+    @defmacro 'Sub', (form) =>
+      switch typeOf(form)
+        when 'String' then {'Fn::Join': ['', interpolateSub(form)]}
+        else {'Fn::Sub': form}
+
+    #=========================================================================#
+    # Define special forms.                                                   #
+    #=========================================================================#
+
     @defspecial 'Let', (form) =>
       if isArray(form)
         @withBindings(@walk(form[0]), => @walk(form[1]))
@@ -175,8 +213,9 @@ class CfnTransformer extends YamlTransformer
         merge(peek(@bindstack), assertObject(@walk(form)))
         null
 
-    @defmacro 'GetAtt', (form) =>
-      'Fn::GetAtt': if isString(form) then split(form, '.', 2) else form
+    #=========================================================================#
+    # Define custom macros.                                                   #
+    #=========================================================================#
 
     @defmacro 'Require', (form) =>
       form = [form] unless isArray(form)
@@ -206,17 +245,6 @@ class CfnTransformer extends YamlTransformer
           resource = merge({Type}, parseKeyOpts(opts), {Properties: resource})
           if (m = @resourceMacros[Type]) then m(resource) else resource
       Resources: ret
-
-    @defmacro 'Ref', 'Ref', (form) =>
-      if typeOf(form) is 'String'
-        [ref, ks...] = form.split('.')
-        switch
-          when form.startsWith('$')     then {'Fn::Env': form[1..]}
-          when form.startsWith('%')     then {'Fn::Get': form[1..]}
-          when form.startsWith('@')     then {'Fn::Attr': form[1..]}
-          when peek(@bindstack)[ref]?   then getIn(peek(@bindstack)[ref], ks)
-          else {'Ref': form}
-      else form
 
     @defmacro 'Attr', (form) =>
       {'Fn::GetAtt': split(form, '.', 2).map((x) => {'Fn::Sub': x})}
@@ -283,18 +311,6 @@ class CfnTransformer extends YamlTransformer
 
     @defmacro 'DeepMerge', (form) =>
       deepMerge.apply(null, form)
-
-    @defmacro 'Sub', (form) =>
-      switch typeOf(form)
-        when 'String' then {'Fn::Join': ['', interpolateSub(form)]}
-        else {'Fn::Sub': form}
-
-    @defmacro 'Join', (form) =>
-      [sep, toks] = form
-      switch (xs = mergeStrings(toks, sep)).length
-        when 0 then ''
-        when 1 then xs[0]
-        else {'Fn::Join': [sep, xs]}
 
     @defmacro 'Tags', (form) =>
       {Key: k, Value: form[k]} for k in Object.keys(form)
