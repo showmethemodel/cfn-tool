@@ -200,7 +200,7 @@ Resources:
     Condition: Create
     DependsOn: [ Bar, Baz ]
     Properties:
-      AutoScalingGroupName: !Sub 'delivery-${Zone}-Asg'
+      AutoScalingGroupName: !Sub '${Zone}-Asg'
       LaunchConfigurationName: !Ref MyServiceLaunchConfig
 ```
 
