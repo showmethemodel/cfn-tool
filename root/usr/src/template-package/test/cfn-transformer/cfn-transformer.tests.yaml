@@ -263,7 +263,7 @@ packages regular files:
   template:
     Foo:
       Bar: !Package data/data1.txt
-      Baz: !Code data/data1.txt
+      Baz: !PackageMap data/data1.txt
 
   expected:
     Foo:
@@ -284,6 +284,20 @@ runs build scripts before packaging:
     Foo:
       Bar: https://s3.amazonaws.com/foop/templates/f54a1fca2d39a6861ed89c203cbabe53.txt
 
+expands custom AsMap result:
+
+  template:
+    Foo: !Package
+      Path: data/data1.txt
+      AsMap:
+        Bucket: !Ref S3Bucket
+        Key: !Ref S3Key
+
+  expected:
+    Foo:
+      Bucket: foop
+      Key: templates/6f5902ac237024bdd0c176cb93063dc4.txt
+
 compresses directories before packaging:
 
   template:
@@ -292,17 +306,17 @@ compresses directories before packaging:
 
   expected:
     Foo:
-      Bar: https://s3.amazonaws.com/foop/templates/212cb4011560c3081d1fe2e6ab48c747.zip
+      Bar: https://s3.amazonaws.com/foop/templates/64497a9963193e6fc806d023a0449876.zip
 
 recursively packages templates:
 
   template:
     Foo:
-      Bar: !Template data/template.yaml
+      Bar: !PackageTemplate data/template.yaml
 
   expected:
     Foo:
-      Bar: https://s3.amazonaws.com/foop/templates/152562e187ebf050e458c04712e9a715.yaml
+      Bar: https://s3.amazonaws.com/foop/templates/733b9125e901078b974b3a3f217405fc.yaml
 
 deep merges objects with Fn::DeepMerge:
 

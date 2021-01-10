@@ -275,34 +275,18 @@ and [`!Package`](#package) macros are provided to make this easier. Arbitrary
 build steps can be executed to build the resource before parsing or uploading
 to S3.
 
-### `!Template`
-
-This macro refers to a local YAML file. The file is recursively parsed, macros
-are expanded, the resulting template is uploaded to S3, and the result is the
-S3 URI of the uploaded file.
-
-```yaml
-# INPUT
-TemplateURL: !Template foo/template.yml
-```
-```yaml
-# OUTPUT
-TemplateURL: https://s3.amazonaws.com/mybucket/templates/f54a1fca2d39a6861ed89c203cbabe53.yml
-```
-
-A build step can be executed prior to uploading to S3:
-
-```yaml
-TemplateURL: !Template
-  Build: 'make -C foo'
-  Path: foo/template.yml
-```
-
 ### `!Package`
 
 This macro uploads a file or directory to S3 and returns the S3 URI of the
-uploaded file. No recursive parsing or macro expansion is performed. Directories
-are zipped before upload.
+uploaded file. Directories are zipped before upload. A number of options are
+supported, as well:
+
+* **`Path`** &mdash; The path of the file/directory to upload, relative to this template.
+* **`Build`** &mdash; A command (bash script) to execute before packaging.
+* **`Parse`** &mdash; If `true`, recursively parse the file and expand macros before packaging (and after building).
+* **`AsMap`** &mdash; If `true` returns `{S3Bucket,S3Key}`, else expands the value with `S3Bucket` and `S3Key` bound.
+
+A simple example, expands to an S3 URI:
 
 ```yaml
 # INPUT
@@ -313,29 +297,48 @@ Code: !Package foo/
 Code: https://s3.amazonaws.com/mybucket/templates/6806d30eed132b19183a51be47264629.zip
 ```
 
-As above, a build step can be executed prior to zipping and uploading to S3:
-
-```yaml
-TemplateURL: !Package
-  Build: 'make -C foo'
-  Path: foo/
-```
-
-### `!Code`
-
-The same as `!Package` but expands to a map with the S3 bucket and key instead
-of the S3 URI of the uploaded file.
+With a build step, expands to a `{S3Bucket,S3Key}` map:
 
 ```yaml
 # INPUT
-Code: !Code foo/
+Foop: !Package
+  Build: |
+    cd myproject
+    make target
+  AsMap: true
+  Path: myproject/target/
 ```
 ```yaml
 # OUTPUT
-Code:
+Foop:
   S3Bucket: mybucket
   S3Key: templates/6806d30eed132b19183a51be47264629.zip
 ```
+
+Expands to a custom map:
+
+```yaml
+# INPUT
+Foop: !Package
+  AsMap:
+    Bucket: !Ref S3Bucket
+    Key: !Ref S3Key
+  Path: myproject/target/
+```
+```yaml
+# OUTPUT
+Foop:
+  Bucket: mybucket
+  Key: templates/6806d30eed132b19183a51be47264629.zip
+```
+
+### `!PackageMap`
+
+This macro is an alias for `!Package` with `AsMap` set to `true`.
+
+### `!PackageTemplate`
+
+This macro is an alias for `!Package` with `Parse` set to `true`.
 
 ### `!TemplateFile`
 

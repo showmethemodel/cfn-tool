@@ -78,6 +78,7 @@ split = (str, sep, count=Infinity) ->
 isString  = (x) -> typeOf(x) is 'String'
 isArray   = (x) -> typeOf(x) is 'Array'
 isObject  = (x) -> typeOf(x) is 'Object'
+isBoolean = (x) -> typeOf(x) is 'Boolean'
 
 assertObject = (thing) ->
   assert.ok(typeOf(thing) in [
@@ -234,21 +235,30 @@ class CfnTransformer extends YamlTransformer
 
     @defmacro 'Package', (form) =>
       form = {Path: form} if isString(form)
-      {Path, Build} = form
+      {Path, Build, AsMap, Parse} = form
       execShell(Build) if Build
-      (if isDirectory(Path) then @writeDir(Path) else @writeFile(Path)).s3uri
+      ret = if isDirectory(Path)
+        @writeDir(Path)
+      else if Parse
+        @writeTemplate(Path)
+      else
+        @writeFile(Path)
+      return if not (AsMap? or AsMap)
+        ret.s3uri
+      else if isBoolean(AsMap)
+        ret.code
+      else
+        @walk {'Fn::Let': [ret.code, AsMap]}
 
-    @defmacro 'Code', (form) =>
+    @defmacro 'PackageMap', (form) =>
       form = {Path: form} if isString(form)
-      {Path, Build} = form
-      execShell(Build) if Build
-      (if isDirectory(Path) then @writeDir(Path) else @writeFile(Path)).code
+      form = Object.assign({AsMap: true}, form)
+      @walk {'Fn::Package': form}
 
-    @defmacro 'Template', (form) =>
+    @defmacro 'PackageTemplate', (form) =>
       form = {Path: form} if isString(form)
-      {Path, Build} = form
-      execShell(Build) if Build
-      @writeTemplate(Path).s3uri
+      form = Object.assign({Parse: true}, form)
+      @walk {'Fn::Package': form}
 
     @defmacro 'Yaml', (form) =>
       if isString(form) then yaml.safeLoad(form) else yaml.safeDump(form)
