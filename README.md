@@ -144,8 +144,8 @@ module.exports = (compiler) => {
 ```yaml
 # INPUT
 Fn::Require: ./lib/case-macros
-Foo: !UpperCase: AsDf
-Bar: !LowerCase: AsDf
+Foo: !UpperCase AsDf
+Bar: !LowerCase AsDf
 ```
 ```yaml
 # OUTPUT
@@ -188,19 +188,19 @@ The macro resource DSL also includes top-level fields (eg. [`Condition`][18],
 ```yaml
 # INPUT
 Fn::Resources:
-  MyService AWS::AutoScaling::AutoScalingGroup Condition=CreateMyService DependsOn=[Bar,Baz]:
-    AutoScalingGroupName: !Sub 'delivery-${Zone}-MyService'
+  Asg AWS::AutoScaling::AutoScalingGroup Condition=Create DependsOn=[Bar,Baz]:
+    AutoScalingGroupName: !Sub '${Zone}-Asg'
     LaunchConfigurationName: !Ref MyServiceLaunchConfig
 ```
 ```yaml
 # OUTPUT
 Resources:
-  MyService:
+  Asg:
     Type: AWS::AutoScaling::AutoScalingGroup
-    Condition: CreateMyService
+    Condition: Create
     DependsOn: [ Bar, Baz ]
     Properties:
-      AutoScalingGroupName: !Sub 'delivery-${Zone}-MyService'
+      AutoScalingGroupName: !Sub 'delivery-${Zone}-Asg'
       LaunchConfigurationName: !Ref MyServiceLaunchConfig
 ```
 
