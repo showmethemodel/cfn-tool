@@ -296,6 +296,19 @@ packages regular files:
         S3Key: templates/6f5902ac237024bdd0c176cb93063dc4.txt
       Baf: s3://foop/templates/6f5902ac237024bdd0c176cb93063dc4.txt
 
+the package map result can be transformed with a let binding:
+
+  template:
+    Foo: !Let
+      - !Package data/data1.txt
+      - MyBucket: !Ref S3Bucket
+        MyKey: !Ref S3Key
+
+  expected:
+    Foo:
+      MyBucket: foop
+      MyKey: templates/6f5902ac237024bdd0c176cb93063dc4.txt
+
 runs build scripts before packaging:
 
   template:
