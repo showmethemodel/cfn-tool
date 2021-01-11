@@ -674,8 +674,10 @@ Resources:
     Properties:
       BucketName: foo-bucket
       Tags:
-        - { Key: ThreatLevel, Value: infinity }
-        - { Key: Maximumness, Value: enforced }
+        - Key: ThreatLevel
+          Value: infinity
+        - Key: Maximumness
+          Value: enforced
 ```
 
 [1]: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/resources-section-structure.html
