@@ -228,8 +228,8 @@ Foo: !If [ SomeCondition, Baz, !Ref Baf ] # expands the bound expression
 
 ### `Fn::Parameters`
 
-This section is handy for reducing boilerplate in the `Parameters` section of
-a CloudFormation template. The value associated with this key is an array of
+This section is handy for reducing boilerplate in the [parameter section of a
+CloudFormation template][21]. The value associated with this key is an array of
 parameter names and options, with sensible defaults.
 
 ```yaml
@@ -256,8 +256,8 @@ Parameters:
 
 ### `Fn::Return`
 
-The return section populates the CloudFormation `Outputs` boilerplate from a
-simple map of keys and values.
+The return section populates the [CloudFormation outputs boilerplate][22]
+from a simple map of keys and values.
 
 ```yaml
 # INPUT
@@ -698,3 +698,5 @@ Resources:
 [18]: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/conditions-section-structure.html
 [19]: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-attribute-dependson.html
 [20]: root/usr/src/template-package/
+[21]: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/parameters-section-structure.html
+[22]: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/outputs-section-structure.html

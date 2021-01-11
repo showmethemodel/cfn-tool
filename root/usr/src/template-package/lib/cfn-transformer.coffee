@@ -8,6 +8,10 @@ crypto          = require 'crypto'
 YamlTransformer = require './yaml-transformer'
 {ResourceTypes} = require './schema/CloudFormationResourceSpecification.json'
 
+#=============================================================================#
+# Helper functions.                                                           #
+#=============================================================================#
+
 topLevelResourceProperties = [
   'Type'
   'Condition'
