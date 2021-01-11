@@ -228,7 +228,7 @@ Foo: !If [ SomeCondition, Baz, !Ref Baf ] # expands the bound expression
 
 ### `Fn::Parameters`
 
-This section is handy for reducing boilerplate in the [parameter section of a
+This section is handy for reducing boilerplate in the [parameters section of a
 CloudFormation template][21]. The value associated with this key is an array of
 parameter names and options, with sensible defaults.
 
