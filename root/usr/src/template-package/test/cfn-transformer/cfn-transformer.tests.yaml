@@ -43,6 +43,7 @@ creates dynamic bindings with Fn::Let:
     Baz:
       Ref: Template
       MyNameIs: charlie
+    Baf: !Ref Template
 
   expected:
     Foo:
@@ -53,6 +54,9 @@ creates dynamic bindings with Fn::Let:
       MyAgeIs: 200
     Baz:
       MyNameIs: charlie
+      MyAgeIs: 0
+    Baf:
+      MyNameIs: nobody
       MyAgeIs: 0
 
 substitites bindings in Refs and Subs:
