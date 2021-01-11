@@ -242,9 +242,16 @@ Fn::Parameters:
 ```yaml
 # OUTPUT
 Parameters:
-  Zone:     { Type: String }
-  Subnets:  { Type: CommaDelimitedList }
-  Enabled:  { Type: String, Default: 'true', AllowedValues: [ 'true', 'false' ] }
+  Zone:
+    Type: String
+  Subnets:
+    Type: CommaDelimitedList
+  Enabled:
+    Type: String
+    Default: true
+    AllowedValues:
+      - true
+      - false
 ```
 
 ### `Fn::Return`
