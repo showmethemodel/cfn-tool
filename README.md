@@ -26,14 +26,15 @@ directory to contain CloudFormation templates.
 
 ```
 .
+├── .cfn-tools
 ├── config/
 │   ├── test.yml
 │   └── prod.yml
 └── infra/
-    ├── my-stack.yml
+    ├── core.yml
     └── lib/
-        ├── foo-template.yml
-        └── bar-template.yml
+        ├── nested-1.yml
+        └── nested-2.yml
 ```
 
 ### Run The Docker Container
@@ -46,13 +47,13 @@ cfn-tools
 ### Inside The Container
 
 ```bash
-# Deploy the dev-core stack:
-stack-deploy dev-core
+# Deploy the test-core stack:
+stack-deploy test-core
 ```
 
 ```bash
-# See CF logs for the dev-core stack:
-stack-log dev-core
+# See CF logs for the test-core stack:
+stack-log test-core
 ```
 
 ## Template Macros
