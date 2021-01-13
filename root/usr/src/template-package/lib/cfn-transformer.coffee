@@ -23,9 +23,6 @@ topLevelResourceProperties = [
   'UpdateReplacePolicy'
 ]
 
-gensym = do (counter = 0) ->
-  (prefix = 'gensym') -> "#{prefix}_#{counter++}"
-
 execShell = (command, opts) ->
   try
     execSync(command, merge({stdio: 'pipe'}, opts))
@@ -363,7 +360,8 @@ class CfnTransformer extends YamlTransformer
     ret
 
   writeDir: (dir) ->
-    tmpZip = @tmpPath("#{gensym()}.zip")
+    console.log('dir:', dir)
+    tmpZip = @tmpPath("#{encodeURIComponent(path.resolve(dir))}.zip")
     execShell("zip -r #{tmpZip} .", {cwd: dir})
     ret = @writePaths(md5File(tmpZip), '.zip')
     fs.renameSync(tmpZip, ret.tmpPath)

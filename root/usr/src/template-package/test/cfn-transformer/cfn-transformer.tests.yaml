@@ -333,7 +333,7 @@ compresses directories before packaging:
 
   expected:
     Foo:
-      Bar: https://s3.amazonaws.com/foop/templates/bedf38fa6b8121334754efbdb9666fad.zip
+      Bar: https://s3.amazonaws.com/foop/templates/ad5aaf29be4c14caf8db3d9553c088e5.zip
 
 recursively packages templates:
 
