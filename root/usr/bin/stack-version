@@ -10,29 +10,7 @@ tpl_tmpfile=$(mktemp)
 trap "rm -f $tpl_tmpfile" EXIT
 
 usage() {
-  warn "$@"
-  cat <<EOT
-USAGE:
-  $(basename $0) [-h] [<stackname>]
-  $(basename $0) -l <stackname>
-
-OVERVIEW:
-  Get the git SHA deployed to stack with name <stackname>. If called with no
-  arguments the current SHA is computed. The SHA is written to stdout in the
-  following format:
-
-    \${BRANCH}@\${SHA}\${DIRTY}
-
-  where BRANCH and SHA are the branch and SHA of the git commit that was de-
-  ployed and DIRTY is a plus (+) if the repo was dirty, or nothing otherwise.
-
-  When the -l option is specified the deployment log is printed. This log is
-  derived from commits that have been tagged by the stack-deploy program.
-
-OPTIONS:
-  -h              Print this and exit.
-  -l              Show a log of past deployments.
-EOT
+  man -P 'less -XE' $(basename $0)
   exit;
 }
 
@@ -60,6 +38,7 @@ if $logmode; then
 elif [ -z "$stack_name" ]; then
   git_id
 else
+  assert_vars
   aws cloudformation describe-stacks --stack-name $stack_name \
     |jt Stacks Parameters [ ParameterKey % ] [ ParameterValue % ] \
     |awk -F\\t '$1 == "Version" {print $2}'

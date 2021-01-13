@@ -1,0 +1,24 @@
+# encoding: utf-8
+stack-log(1) -- log cloudformation stacks
+===============================================
+
+## SYNOPSIS
+
+`stack-log` `[-h]` <stackname> `[`<timestamp>`]`
+
+## DESCRIPTION
+
+Get the event log for the cloudformation stack with name <stackname> and
+print it to stdout. If a <timestamp> is provided the result will contain
+only messages with timestamps not before <timestamp>.
+
+Example timestamp: 2020-07-16T18:51:03.000Z
+
+## OPTIONS
+
+  * `-h`:
+    Print usage info and exit.
+
+## EXIT STATUS
+
+Exits with a status of 1 if an error occurred, or 0 otherwise.

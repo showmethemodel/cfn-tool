@@ -10,22 +10,7 @@ tpl_tmpfile=$(mktemp)
 trap "rm -f $tpl_tmpfile" EXIT
 
 usage() {
-  warn "$@"
-  cat <<EOT
-USAGE:
-  $(basename $0) <stackname> [<timestamp>]
-  $(basename $0) -h
-
-OVERVIEW:
-  Get the event log for the CloudFormation stack with name <stackname> and
-  print it to stdout. If a <timestamp> is provided the result will contain
-  only messages with timestamps not before <timestamp>.
-
-  Example timestamp: 2020-07-16T18:51:03.000Z
-
-OPTIONS:
-  -h              Print this and exit.
-EOT
+  man -P 'less -XE' $(basename $0)
   exit;
 }
 
@@ -39,6 +24,8 @@ shift $((OPTIND-1))
 
 stack_name=$1 ; shift || true
 as_of=$1      ; shift || true
+
+assert_vars
 
 logs=$(
   aws cloudformation describe-stack-events \

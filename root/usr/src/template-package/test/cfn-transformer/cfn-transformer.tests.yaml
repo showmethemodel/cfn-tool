@@ -146,13 +146,13 @@ expands Fn::Sub macros:
   template:
     Fn::Let:
       Test1: testval1
-    Foo: !Sub 'One${Foo}Two${%${AWS::Region}.Vpc.CidrBlock}Three${@Bar.ARN}Four:${Test1}'
+    Foo: !Sub '${!Literal}One${Foo}Two${%${AWS::Region}.Vpc.CidrBlock}Three${@Bar.ARN}Four:${Test1}'
 
   expected:
     Foo:
       Fn::Join:
         - ''
-        - - One
+        - - ${!Literal}One
           - Ref: Foo
           - Two
           - Fn::FindInMap:
@@ -284,21 +284,41 @@ expands Fn::Return macros:
             - Bar
             - ARN
 
+executes Fn::Shell commands:
+
+  template:
+    Foo: !Shell echo -n hello, world!
+
+  expected:
+    Foo: hello, world!
+
 packages regular files:
 
   template:
     Foo:
-      Bar: !PackageURL data/data1.txt
+      Bar: !PackageURL
+        CacheKey: foobar
+        Path: data/data1.txt
       Baz: !Package data/data1.txt
       Baf: !PackageURI data/data1.txt
 
   expected:
     Foo:
-      Bar: https://s3.amazonaws.com/foop/templates/6f5902ac237024bdd0c176cb93063dc4.txt
+      Bar: https://s3.amazonaws.com/foop/templates/4394265f9744cb0c268001f151dc0931.txt
       Baz:
         S3Bucket: foop
         S3Key: templates/6f5902ac237024bdd0c176cb93063dc4.txt
       Baf: s3://foop/templates/6f5902ac237024bdd0c176cb93063dc4.txt
+
+expands Fn::Do macros:
+
+  template:
+    Foo: !Do
+        - !Let { Greet: world }
+        - !Sub hello, ${Greet}!
+
+  expected:
+    Foo: hello, world!
 
 the package map result can be transformed with a let binding:
 
@@ -318,8 +338,9 @@ runs build scripts before packaging:
   template:
     Foo:
       Bar: !PackageURL
-        Path: data/data2.txt
-        Build: 'make -C data data2.txt'
+        Fn::Shell: |
+          make -C data data2.txt 1>&2
+          echo -n data/data2.txt
 
   expected:
     Foo:
@@ -333,7 +354,7 @@ compresses directories before packaging:
 
   expected:
     Foo:
-      Bar: https://s3.amazonaws.com/foop/templates/ad5aaf29be4c14caf8db3d9553c088e5.zip
+      Bar: https://s3.amazonaws.com/foop/templates/877df79d4664aca15df11a668fdfdf78.zip
 
 recursively packages templates:
 

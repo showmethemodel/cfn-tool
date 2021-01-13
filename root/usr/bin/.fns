@@ -25,17 +25,19 @@ success() { bold "$(green "$@")"; }
 
 [ -f .cfn-tools ] && . .cfn-tools || true
 
-[ $CFN_TOOLS_BUCKET ] || {
-  warn required env var CFN_TOOLS_BUCKET not set
-  warn Hint: 'echo CFN_TOOLS_BUCKET=my-bukkit > .cfn-tools'
-  abort
-}
-
-for i in AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_DEFAULT_REGION; do
-  [ -n "${!i}" ] || abort required env var $i not set
-done
-
 bucket=$CFN_TOOLS_BUCKET
+
+assert_vars() {
+  [ $CFN_TOOLS_BUCKET ] || {
+    warn required env var CFN_TOOLS_BUCKET not set
+    warn Hint: 'echo CFN_TOOLS_BUCKET=my-bukkit > .cfn-tools'
+    abort
+  }
+
+  for i in AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_DEFAULT_REGION; do
+    [ -n "${!i}" ] || abort required env var $i not set
+  done
+}
 
 relpath() { 
   python -c "import os,sys;print(os.path.relpath(*(sys.argv[1:])))" "$@";

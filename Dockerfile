@@ -4,12 +4,13 @@ RUN yum -y install yum-utils
 RUN yum-config-manager --enable epel && yum -y update
 RUN yum -y groupinstall 'Development Tools'
 RUN yum -y install procps net-tools tree sudo man which \
-      mlocate python2-pip git xz jq dialog rsync
+      mlocate python2-pip git xz jq dialog rsync ruby ruby-devel
 RUN amazon-linux-extras install -y docker
 
-RUN pip install awscli==1.15.48
-RUN pip uninstall -y pyyaml
-RUN pip install pyyaml==4.2b4
+RUN gem install ronn
+
+RUN curl https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o /tmp/awscliv2.zip \
+  && (cd /tmp && unzip awscliv2.zip && ./aws/install)
 
 RUN rpm -i http://www.ivarch.com/programs/rpms/pv-1.6.6-1.x86_64.rpm
 
@@ -28,6 +29,9 @@ RUN (cd /tmp/cfn-tools && git archive --format=tar HEAD root) \
   | (cd / && tar --strip-components=1 -xf -)
 
 RUN npm install -g /usr/src/template-package/
+
+RUN find /usr/share/man -type f -name '*.ronn' -exec ronn -r {} \; && \
+      find /usr/share/man -type f -name '*.ronn' -exec rm -f {} \;
 
 WORKDIR /
 

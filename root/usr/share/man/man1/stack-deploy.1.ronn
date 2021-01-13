@@ -1,0 +1,29 @@
+# encoding: utf-8
+stack-deploy(1) -- deploy cloudformation stacks
+===============================================
+
+## SYNOPSIS
+
+`stack-deploy` `[-hv]` <stackname>
+
+## DESCRIPTION
+
+Deploys cloudformation stack <stackname>, where <stackname> is of the format
+<zone>-<template>. The <zone> must correspond to a configuration file named
+config/<zone>.yml and the <template> must correspond to a cloudformation
+template named infra/<template>.yml.
+
+## OPTIONS
+
+  * `-h`:
+    Print usage info and exit.
+
+  * `-n`:
+    Dry run mode: package templates but do not upload files to S3 nor deploy.
+
+  * `-v`:
+    Print extra diagnostic output while deploying.
+
+## EXIT STATUS
+
+Exits with a status of 1 if an error occurred, or 0 otherwise.

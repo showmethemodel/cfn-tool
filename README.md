@@ -277,13 +277,12 @@ Outputs:
       Ref: Val2
 ```
 
-## Templates, Packages, Build Steps, And Files
+## Templates, Packages, And Files
 
 Some CloudFormation resources (eg. [nested stacks][5], [Lambda functions][14])
 refer to other resources that must be uploaded to S3. The [`!Package`](#package)
 macro and associated convenience macros based on it are provided to make this
-easier. Arbitrary build steps can be executed to build the resource before
-parsing, zipping, and uploading to S3.
+easier.
 
 ### `!Package`
 
@@ -293,31 +292,14 @@ upload. The argument can be a path (string) or an options object with the
 following properties:
 
 * **`Path`** &mdash; The path of the file/directory to upload, relative to this template.
-* **`Build`** &mdash; A command (bash script) to execute before packaging.
 * **`Parse`** &mdash; If `true`, recursively parse the file and expand macros before packaging (and after building).
+* **`CacheKey`** &mdash; Filename in S3 will be computed from this string instead of from the hash of the contents.
 
 A simple example:
 
 ```yaml
 # INPUT
 Foop: !Package foo/
-```
-```yaml
-# OUTPUT
-Foop:
-  S3Bucket: mybucket
-  S3Key: templates/6806d30eed132b19183a51be47264629.zip
-```
-
-With a build step:
-
-```yaml
-# INPUT
-Foop: !Package
-  Build: |
-    cd myproject
-    make target
-  Path: myproject/target/
 ```
 ```yaml
 # OUTPUT
@@ -338,7 +320,6 @@ Foop: !PackageURL foo/
 # OUTPUT
 Foop: https://s3.amazonaws.com/mybucket/templates/6806d30eed132b19183a51be47264629.zip
 ```
-
 
 ### `!PackageURI`
 
@@ -522,6 +503,22 @@ Baf: { Fn::GetAtt: [ Thing, Outputs.StreamName ] }
 
 ## Other Useful Macros
 
+### `!Do`
+
+Given an array, sequentially expands macros in each item in the array, returning
+the last result.
+
+```yaml
+# INPUT
+Foo: !Do
+  - !Let { Greet: world }
+  - !Sub hello, ${Greet}!
+```
+```yaml
+# OUTPUT
+Foo: hello, world!
+```
+
 ### `!Let`
 
 The `!Let` macro can be used to expand simple templates within the template
@@ -547,6 +544,19 @@ Foo:
   IAm: a person
   MyNameIs: alice
   MyAgeIs: 100
+```
+
+### `!Shell`
+
+Given a shell script string, evaluates it in the shell, returning the output.
+
+```yaml
+# INPUT
+Foo: !Shell echo -n hello, world!
+```
+```yaml
+# OUTPUT
+Foo: hello, world!
 ```
 
 ### `!Merge`

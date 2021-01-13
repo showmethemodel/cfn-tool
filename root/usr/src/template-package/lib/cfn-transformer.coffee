@@ -4,7 +4,7 @@ os              = require 'os'
 path            = require 'path'
 assert          = require 'assert'
 crypto          = require 'crypto'
-{execSync}      = require 'child_process'
+{spawnSync}     = require 'child_process'
 YamlTransformer = require './yaml-transformer'
 {ResourceTypes} = require './schema/CloudFormationResourceSpecification.json'
 
@@ -23,13 +23,13 @@ topLevelResourceProperties = [
   'UpdateReplacePolicy'
 ]
 
-execShell = (command, opts) ->
-  try
-    execSync(command, merge({stdio: 'pipe'}, opts))
-  catch e
-    msg = "shell exec failed: #{command}"
-    err = e.stderr.toString('utf-8')
-    assert.fail(if err? then "#{msg}\n#{err}" else msg)
+assoc = (xs, k, v) ->
+  xs[k] = v
+  xs
+
+conj = (xs, x) ->
+  xs.push(x)
+  xs
 
 readFile = (file) ->
   fs.readFileSync(file).toString('utf-8')
@@ -67,6 +67,18 @@ md5 = (data) ->
 md5File = (filePath) ->
   md5(fs.readFileSync(filePath))
 
+md5Dir = (dirPath) ->
+  origDir = process.cwd()
+  try
+    process.chdir(dirPath)
+    add2tree = (tree, path) -> assoc(tree, path, md5Path(path))
+    md5(JSON.stringify(fs.readdirSync('.').sort().reduce(add2tree, {})))
+  finally
+    process.chdir(origDir)
+
+md5Path = (path) ->
+  (if isDirectory(path) then md5Dir else md5File)(path)
+
 peek = (ary) -> ary[ary.length - 1]
 
 getIn = (obj, ks) -> ks.reduce(((xs, x) -> xs[x]), obj)
@@ -87,6 +99,10 @@ assertObject = (thing) ->
     'Undefined'
     'Null'
   ], "expected an Object, got #{JSON.stringify(thing)}")
+  thing
+
+assertArray = (thing) ->
+  assert.ok(isArray(thing), "expected an Array, got #{JSON.stringify(thing)}")
   thing
 
 parseKeyOpt = (opt) ->
@@ -116,9 +132,9 @@ indexOfClosingCurly = (form) ->
 interpolateSub = (form) ->
   ret = []
   while true
-    if form.startsWith('${!}')
-      ret.push(form[0...4])
-      form = form[4..]
+    if form.startsWith('${!')
+      ret.push(form[0...3])
+      form = form[3..]
     else if form.startsWith('${')
       i = indexOfClosingCurly(form[2..])
       assert.notEqual(i, -1, "no closing curly: #{JSON.stringify(form)}")
@@ -138,12 +154,8 @@ interpolateSub = (form) ->
 #=============================================================================#
 
 class CfnTransformer extends YamlTransformer
-  constructor: ({@basedir, @tempdir, @cache, @s3bucket, @s3prefix} = {}) ->
+  constructor: ({@basedir, @tempdir, @cache, @s3bucket, @s3prefix, @verbose} = {}) ->
     super()
-
-    if @s3bucket
-      @s3uri = "https://s3.amazonaws.com/#{@s3bucket}/"
-      @s3uri = "#{@s3uri}#{@s3prefix}" if @s3prefix
 
     @cache          ?= {}
     @basedir        ?= process.cwd()
@@ -151,27 +163,6 @@ class CfnTransformer extends YamlTransformer
     @template       = null
     @resourceMacros = []
     @bindstack      = []
-
-    #=========================================================================#
-    # Define built-in CloudFormation macros (pass through verbatim).          #
-    #=========================================================================#
-
-    [
-      'Base64'
-      'FindInMap'
-      'GetAZs'
-      'ImportValue'
-      'Select'
-      'Split'
-      'Cidr'
-      'GetArtifactAtt'
-      'GetParam'
-      'And'
-      'Equals'
-      'If'
-      'Not'
-      'Or'
-    ].forEach (x) => @defmacro(x)
 
     #=========================================================================#
     # Redefine and extend built-in CloudFormation macros.                     #
@@ -213,6 +204,9 @@ class CfnTransformer extends YamlTransformer
       else
         merge(peek(@bindstack), assertObject(@walk(form)))
         null
+
+    @defspecial 'Do', (form) =>
+      assertArray(form).reduce(((xs, x) => @walk(x)), null)
 
     #=========================================================================#
     # Define custom macros.                                                   #
@@ -262,17 +256,19 @@ class CfnTransformer extends YamlTransformer
     @defmacro 'Var', (form) =>
       {'Fn::ImportValue': {'Fn::Sub': form}}
 
+    @defmacro 'Shell', (form) =>
+      @execShell(form)
+
     @defmacro 'Package', (form) =>
       form = {Path: form} if isString(form)
-      {Path, Build, Parse} = form
-      execShell(Build) if Build
+      {Path, CacheKey, Parse} = form
       (
         if isDirectory(Path)
-          @writeDir(Path)
+          @writeDir(Path, CacheKey)
         else if Parse
-          @writeTemplate(Path)
+          @writeTemplate(Path, CacheKey)
         else
-          @writeFile(Path)
+          @writeFile(Path, CacheKey)
       ).code
 
     @defmacro 'PackageURL', (form) =>
@@ -330,39 +326,58 @@ class CfnTransformer extends YamlTransformer
     msg.unshift("\n  in #{@template}:") if @template
     throw new Error(msg.join(' '))
 
+  debug: (msg...) ->
+    console.error.apply(console, msg) if @verbose
+    msg.join(' ')
+
+  execShell: (command, opts) ->
+    try
+      res = spawnSync(command, merge({stdio: 'pipe', shell: '/bin/bash'}, opts))
+      throw res if res.status isnt 0
+      @debug x if (x = res.stderr?.toString('utf-8'))
+      res.stdout?.toString('utf-8')
+    catch e
+      msg = "shell exec failed: #{command}"
+      err = e.stderr.toString('utf-8')
+      assert.fail(if err? then "#{msg}\n#{err}" else msg)
+
   withBindings: (bindings, f) ->
     @bindstack.push(merge({}, peek(@bindstack), assertObject(bindings)))
     ret = f()
     @bindstack.pop()
     ret
 
+  canonicalHash: (fileOrDir, key) ->
+    canon = encodeURIComponent(@userPath(fileOrDir))
+    if key then md5("#{canon}/#{key}") else md5Path(fileOrDir)
+
   writePaths: (fileName, ext = '') ->
     fileName = "#{fileName}#{ext}"
     tmpPath:  @tmpPath(fileName),
-    s3uri:    @s3path(fileName),
     code:     { S3Bucket: @s3bucket, S3Key: "#{@s3prefix}#{fileName}" }
 
-  writeText: (text, ext) ->
-    ret = @writePaths(md5(text), ext)
+  writeText: (text, ext, key) ->
+    ret = @writePaths(md5(key or text), ext)
     fs.writeFileSync(ret.tmpPath, text)
     ret
 
   transformTemplateFile: (file) ->
-    xformer = new @.constructor({@basedir, @tempdir, @cache, @s3bucket, @s3prefix})
+    xformer = new @.constructor({@basedir, @tempdir, @cache, @s3bucket, @s3prefix, @verbose})
     xformer.transformFile(file)
 
-  writeTemplate: (file) ->
-    @writeText(@transformTemplateFile(file), fileExt(file))
+  writeTemplate: (file, key) ->
+    @writeText(@transformTemplateFile(file), fileExt(file), key)
 
-  writeFile: (file) ->
-    ret = @writePaths(md5File(file), fileExt(file))
+  writeFile: (file, key) ->
+    ret = @writePaths(@canonicalHash(file, key), fileExt(file))
     fs.copyFileSync(file, ret.tmpPath)
     ret
 
-  writeDir: (dir) ->
-    tmpZip = @tmpPath("#{encodeURIComponent(path.resolve(dir))}.zip")
-    execShell("zip -r #{tmpZip} .", {cwd: dir})
-    ret = @writePaths(md5File(tmpZip), '.zip')
+  writeDir: (dir, key) ->
+    tmpZip = @tmpPath("#{encodeURIComponent(@userPath(dir))}.zip")
+    @debug "packg: #{dir}"
+    @execShell("zip -r #{tmpZip} .", {cwd: dir})
+    ret = @writePaths(@canonicalHash(dir, key), '.zip')
     fs.renameSync(tmpZip, ret.tmpPath)
     ret
 
@@ -372,13 +387,11 @@ class CfnTransformer extends YamlTransformer
   tmpPath: (name) ->
     path.join(@tempdir, name)
 
-  s3path: (name) ->
-    if @s3uri then "#{@s3uri}#{name}" else @tmpPath(name)
-
   pushFile: (file, f) ->
     tpl = @template
     dir = process.cwd()
     @template = @userPath(file)
+    @debug "xform: #{@template}"
     process.chdir(path.dirname(file))
     ret = f(path.basename(file))
     process.chdir(dir)

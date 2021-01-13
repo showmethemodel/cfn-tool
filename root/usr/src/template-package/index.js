@@ -19,7 +19,7 @@ const PROG        = path.basename(process.argv[1]);
  *****************************************************************************/
 
 abortOnException(fs, [
-  'copyFileSync',
+  'writeFileSync',
   'readFileSync',
 ]);
 
@@ -63,7 +63,8 @@ OPTIONS:
     -t, --temp-dir=DIR
     -b, --s3-bucket=BUCKET
     -p, --s3-prefix=PREFIX
-    -o, --out-file=FILE`
+    -o, --out-file=FILE
+    -v, --verbose`
   );
   process.exit(0);
 }
@@ -77,9 +78,10 @@ function parseArgv(argv) {
         'temp-dir':   't',
         's3-bucket':  'b',
         's3-prefix':  'p',
-        'out-file':   'o'
+        'out-file':   'o',
+        'verbose':    'v'
       },
-      boolean:  ['help', 'json'],
+      boolean:  ['help', 'json', 'verbose'],
       string:   ['s3-bucket', 's3-prefix', 'template', 'out-file', 'temp-dir'],
       unknown:  x => abort(`unknown option: ${x}`)
     }
@@ -103,18 +105,19 @@ function main(argv) {
   const tplPath = new CfnTransformer({
     tempdir:  opts['temp-dir'],
     s3bucket: opts['s3-bucket'],
-    s3prefix: opts['s3-prefix']
+    s3prefix: opts['s3-prefix'],
+    verbose:  opts['verbose']
   }).writeTemplate(opts['template']).tmpPath;
 
-  if (opts['out-file']) copyFileSync(tplPath, opts['out-file']);
   var ret = readFileSync(tplPath).toString('utf-8');
   if (opts.json) ret = JSON.stringify(yaml.safeLoad(ret));
-  return ret;
+
+  opts['out-file'] ? writeFileSync(opts['out-file'], ret) : console.log(ret);
 }
 
 process.on('uncaughtException', (err) => {
   abort('uncaught exception:', err);
 });
 
-console.log(main(process.argv.slice(2)));
+main(process.argv.slice(2));
 process.exit(0);
