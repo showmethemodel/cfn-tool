@@ -360,7 +360,6 @@ class CfnTransformer extends YamlTransformer
     ret
 
   writeDir: (dir) ->
-    console.log('dir:', dir)
     tmpZip = @tmpPath("#{encodeURIComponent(path.resolve(dir))}.zip")
     execShell("zip -r #{tmpZip} .", {cwd: dir})
     ret = @writePaths(md5File(tmpZip), '.zip')
