@@ -11,7 +11,7 @@ round-trips simple yaml docs:
 expands Fn::Parameters macros:
 
   template:
-    Fn::Parameters:
+    <<: !Parameters
       - Foo
       - Bar Type=CommaDelimitedList
 
@@ -25,7 +25,7 @@ expands Fn::Parameters macros:
 creates dynamic bindings with Fn::Let:
 
   template:
-    Fn::Let:
+    <<: !Let
       MyName: nobody
       MyAge: 0
       Alice:
@@ -62,7 +62,7 @@ creates dynamic bindings with Fn::Let:
 substitites bindings in Refs and Subs:
 
   template:
-    Fn::Let:
+    <<: !Let
       Binding1: val1
       Binding2: [val2, val3, val4]
       Binding3:
@@ -144,7 +144,7 @@ ignores Refs it cannot transform:
 expands Fn::Sub macros:
 
   template:
-    Fn::Let:
+    <<: !Let
       Test1: testval1
     Foo: !Sub '${!Literal}One${Foo}Two${%${AWS::Region}.Vpc.CidrBlock}Three${@Bar.ARN}Four:${Test1}'
 
@@ -168,7 +168,7 @@ expands Fn::Sub macros:
 merges strings in Fn::Join:
 
   template:
-    Fn::Let:
+    <<: !Let
       Bind1: one
       Bind2: two
     Foo: !Sub '${Bind1}=1,${Bind2}=2,${$MY_ENV_VAR}=3'
@@ -179,12 +179,12 @@ merges strings in Fn::Join:
 expands Fn::Resources macros:
 
   template:
-    Fn::Let:
+    <<: !Let
       BucketTpl:
         Type: AWS::S3::Bucket
         Properties:
           BucketName: !Ref Name
-    Fn::Resources:
+    <<: !Resources
       MyBucket AWS::S3::Bucket Condition=Prod DependsOn=[X,Y,Z]:
         BucketName: mybucket
       OtherBucket:
@@ -220,7 +220,7 @@ expands Fn::Resources macros:
 expands Stack resource macros:
 
   template:
-    Fn::Resources:
+    <<: !Resources
       MyStack Stack:
         TemplateURL: foop
         Param1: hello world
@@ -237,13 +237,13 @@ expands Stack resource macros:
 expands bound templates:
 
   template:
-    Fn::Let:
+    <<: !Let
       Tpl:
         Type: Stack
         Properties:
           TemplateURL: foop.yml
           Param1: !Ref Param1
-    Fn::Resources:
+    <<: !Resources
       Thing1: !Let
         - Param1: hello world
         - !Ref Tpl
@@ -256,20 +256,20 @@ expands bound templates:
       Thing1:
         Type: AWS::CloudFormation::Stack
         Properties:
+          TemplateURL: foop.yml
           Parameters:
             Param1: hello world
-          TemplateURL: foop.yml
       Thing2:
         Type: AWS::CloudFormation::Stack
         Properties:
+          TemplateURL: foop.yml
           Parameters:
             Param1: goodbye world
-          TemplateURL: foop.yml
 
 expands Fn::Return macros:
 
   template:
-    Fn::Return:
+    <<: !Return
       Foop: !Ref Foo
       Barp: !GetAtt Bar.ARN
 
@@ -304,7 +304,7 @@ packages regular files:
 
   expected:
     Foo:
-      Bar: https://s3.amazonaws.com/foop/templates/4394265f9744cb0c268001f151dc0931.txt
+      Bar: https://s3.amazonaws.com/foop/templates/3858f62230ac3c915f300c664312c63f.txt
       Baz:
         S3Bucket: foop
         S3Key: templates/6f5902ac237024bdd0c176cb93063dc4.txt
@@ -337,10 +337,7 @@ runs build scripts before packaging:
 
   template:
     Foo:
-      Bar: !PackageURL
-        Fn::Shell: |
-          make -C data data2.txt 1>&2
-          echo -n data/data2.txt
+      Bar: !PackageURL [ !Shell 'make -C data data2.txt 1>&2 ; echo -n data/data2.txt' ]
 
   expected:
     Foo:
@@ -384,13 +381,13 @@ deep merges objects with Fn::DeepMerge:
 loads template files with Fn::TemplateFile:
 
   template:
-    Fn::Let:
+    <<: !Let
       Dir: data
       Name: config
 
     Foo: !TemplateFile data/config1.yaml
     Bar: !DeepMerge [ !TemplateFile data/config1.yaml, !TemplateFile data/config2.yaml ]
-    Baz: !TemplateFile ${Dir}/${Name}3.yaml
+    Baz: !TemplateFile [ !Sub '${Dir}/${Name}3.yaml' ]
 
   expected:
     Foo:
@@ -412,7 +409,7 @@ loads template files with Fn::TemplateFile:
 adds macros with Fn::Require:
 
   template:
-    Fn::Require: ./lib/case-macros
+    <<: !Require ./lib/case-macros
     Foo: !UpperCase AsDf
     Bar: !LowerCase AsDf
 

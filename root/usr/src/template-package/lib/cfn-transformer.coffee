@@ -168,8 +168,25 @@ class CfnTransformer extends YamlTransformer
     # Redefine and extend built-in CloudFormation macros.                     #
     #=========================================================================#
 
+    @defmacro 'Base64', (form) =>
+      form = if isArray(form) then form[0] else form
+      {'Fn::Base64': form}
+
+    @defmacro 'GetAZs', (form) =>
+      form = if isArray(form) then form[0] else form
+      {'Fn::GetAZs': form}
+
+    @defmacro 'ImportValue', (form) =>
+      form = if isArray(form) then form[0] else form
+      {'Fn::ImportValue': form}
+
     @defmacro 'GetAtt', (form) =>
-      'Fn::GetAtt': if isString(form) then split(form, '.', 2) else form
+      form = if isArray(form) and form.length is 1 then form[0] else form
+      {'Fn::GetAtt': if isString(form) then split(form, '.', 2) else form}
+
+    @defmacro 'RefAll', (form) =>
+      form = if isArray(form) then form[0] else form
+      {'Fn::RefAll': form}
 
     @defmacro 'Join', (form) =>
       [sep, toks] = form
@@ -178,18 +195,23 @@ class CfnTransformer extends YamlTransformer
         when 1 then xs[0]
         else {'Fn::Join': [sep, xs]}
 
+    @defmacro 'Condition', 'Condition', (form) =>
+      {Condition: if isArray(form) then form[0] else form}
+
     @defmacro 'Ref', 'Ref', (form) =>
-      if typeOf(form) is 'String'
+      form = if isArray(form) then form[0] else form
+      if isString(form)
         [ref, ks...] = form.split('.')
         switch
           when form.startsWith('$')     then {'Fn::Env': form[1..]}
           when form.startsWith('%')     then {'Fn::Get': form[1..]}
           when form.startsWith('@')     then {'Fn::Attr': form[1..]}
           when peek(@bindstack)[ref]?   then getIn(peek(@bindstack)[ref], ks)
-          else {'Ref': form}
+          else {Ref: form}
       else form
 
     @defmacro 'Sub', (form) =>
+      form = if isArray(form) and form.length is 1 then form[0] else form
       switch typeOf(form)
         when 'String' then {'Fn::Join': ['', interpolateSub(form)]}
         else {'Fn::Sub': form}
@@ -199,6 +221,7 @@ class CfnTransformer extends YamlTransformer
     #=========================================================================#
 
     @defspecial 'Let', (form) =>
+      form = if isArray(form) and form.length is 1 then form[0] else form
       if isArray(form)
         @withBindings(@walk(form[0]), => @walk(form[1]))
       else
@@ -242,24 +265,30 @@ class CfnTransformer extends YamlTransformer
       Resources: ret
 
     @defmacro 'Attr', (form) =>
+      form = if isArray(form) then form[0] else form
       {'Fn::GetAtt': split(form, '.', 2).map((x) => {'Fn::Sub': x})}
 
     @defmacro 'Get', (form) =>
+      form = if isArray(form) and form.length is 1 then form[0] else form
       form = form.split('.') if isString(form)
       {'Fn::FindInMap': form.map((x) => {'Fn::Sub': x})}
 
     @defmacro 'Env', (form) =>
+      form = if isArray(form) then form[0] else form
       ret = process.env[form]
       assert.ok(ret?, "required environment variable not set: #{form}")
       ret
 
     @defmacro 'Var', (form) =>
+      form = if isArray(form) then form[0] else form
       {'Fn::ImportValue': {'Fn::Sub': form}}
 
     @defmacro 'Shell', (form) =>
+      form = if isArray(form) then form[0] else form
       @execShell(form)
 
     @defmacro 'Package', (form) =>
+      form = if isArray(form) then form[0] else form
       form = {Path: form} if isString(form)
       {Path, CacheKey, Parse} = form
       (
@@ -272,6 +301,7 @@ class CfnTransformer extends YamlTransformer
       ).code
 
     @defmacro 'PackageURL', (form) =>
+      form = if isArray(form) then form[0] else form
       @walk
         'Fn::Let': [
           {'Fn::Package': form}
@@ -279,6 +309,7 @@ class CfnTransformer extends YamlTransformer
         ]
 
     @defmacro 'PackageURI', (form) =>
+      form = if isArray(form) then form[0] else form
       @walk
         'Fn::Let': [
           {'Fn::Package': form}
@@ -286,20 +317,32 @@ class CfnTransformer extends YamlTransformer
         ]
 
     @defmacro 'PackageTemplateURL', (form) =>
+      form = if isArray(form) then form[0] else form
       form = {Path: form} if isString(form)
       @walk {'Fn::PackageURL': Object.assign({Parse: true}, form)}
 
-    @defmacro 'Yaml', (form) =>
-      if isString(form) then yaml.safeLoad(form) else yaml.safeDump(form)
+    @defmacro 'YamlParse', (form) =>
+      form = if isArray(form) then form[0] else form
+      yaml.safeLoad(form)
 
-    @defmacro 'Json', (form) =>
-      if isString(form) then JSON.parse(form) else JSON.stringify(form)
+    @defmacro 'YamlDump', (form) =>
+      form = if isArray(form) then form[0] else form
+      yaml.safeDump(form)
+
+    @defmacro 'JsonParse', (form) =>
+      form = if isArray(form) then form[0] else form
+      JSON.parse(form)
+
+    @defmacro 'JsonDump', (form) =>
+      form = if isArray(form) then form[0] else form
+      JSON.stringify(form)
 
     @defmacro 'File', (form) =>
+      form = if isArray(form) then form[0] else form
       fs.readFileSync(form)
 
     @defmacro 'TemplateFile', (form) =>
-      form = @walk(@macros['Fn::Sub'](form))
+      form = if isArray(form) then form[0] else form
       yaml.safeLoad(@transformTemplateFile(form))
 
     @defmacro 'Merge', (form) =>

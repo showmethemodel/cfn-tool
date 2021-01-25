@@ -77,51 +77,6 @@ Foo:
   Fn::Base64: bar
 ```
 
-### Value vs. Merge Context
-
-Macros can be expanded in a "value context" or a "merge context". In a value
-context the result is associated with a property in a map, whereas in a merge
-context the result is merged into the map.
-
-#### Value Context
-
-If we suppose the macro `!Baf quux` expands to `{Zip: Zot, Ding: Dong}` then
-in value context we see:
-
-```yaml
-# INPUT
-Foo:
-  Bar: 100
-  Baz: !Baf quux
-```
-```yaml
-# OUTPUT
-Foo:
-  Bar: 100
-  Baz:
-    Zip: Zot
-    Ding: Dong
-```
-
-and in merge context we see:
-
-```yaml
-# INPUT
-Foo:
-  Bar: 100
-  Fn::Baf: quux
-```
-```yaml
-# OUTPUT
-Foo:
-  Bar: 100
-  Zap: Zot
-  Ding: Dong
-```
-
-Note that the `Fn::Baf` full tag form was used, because the short form is not
-syntactically valid YAML in merge context.
-
 ## Top Level Macros
 
 Top level macros are used at the top level of the template, to transform the
@@ -129,7 +84,7 @@ Top level macros are used at the top level of the template, to transform the
 Top level macros must be used in the long form (eg. `Fn::Foo`), not the short
 form (eg.  `!Foo`).
 
-### `Fn::Require`
+### `!Require`
 
 The `!Require` macro can be used to add global macro definitions to the parser.
 Macro definitions are implemented in JavaScript or CoffeeScript, and are defined
@@ -144,7 +99,7 @@ module.exports = (compiler) => {
 ```
 ```yaml
 # INPUT
-Fn::Require: ./lib/case-macros
+<<: !Require ./lib/case-macros
 Foo: !UpperCase AsDf
 Bar: !LowerCase AsDf
 ```
@@ -157,7 +112,7 @@ Bar: asdf
 The `!Require` macro also accepts an array of definition files:
 
 ```yaml
-Fn::Require:
+<<: !Require
   - ./lib/case-macros
   - ./lib/loop-macros
 ```
@@ -178,7 +133,7 @@ The `Fn::Resources` macro resource DSL has the following slightly different
 form:
 
 ```yaml
-Fn::Resources:
+<<: !Resources
   <LogicalID> <ResourceType>:
     <PropertyKey>: <PropertyValue>
 ```
@@ -188,7 +143,7 @@ The macro resource DSL also includes top-level fields (eg. [`Condition`][18],
 
 ```yaml
 # INPUT
-Fn::Resources:
+<<: !Resources
   Asg AWS::AutoScaling::AutoScalingGroup Condition=Create DependsOn=[Bar,Baz]:
     AutoScalingGroupName: !Sub '${Zone}-Asg'
     LaunchConfigurationName: !Ref MyServiceLaunchConfig
@@ -199,7 +154,9 @@ Resources:
   Asg:
     Type: AWS::AutoScaling::AutoScalingGroup
     Condition: Create
-    DependsOn: [ Bar, Baz ]
+    DependsOn:
+      - Bar
+      - Baz
     Properties:
       AutoScalingGroupName: !Sub '${Zone}-Asg'
       LaunchConfigurationName: !Ref MyServiceLaunchConfig
@@ -214,14 +171,13 @@ replaced by the bound expression. This works in all constructs supporting
 
 ```yaml
 # INPUT
-Fn::Let:
-  MyBinding: !If [ SomeCondition, Baz, !Ref Baf ] # binds expression to MyBinding
-
-Foo: !Ref MyBinding # reference the bound expression
+<<: !Let
+  MyBinding: !If [ SomeCondition, Baz, !Ref Baf ]
+Foo: !Ref MyBinding
 ```
 ```yaml
 # OUTPUT
-Foo: !If [ SomeCondition, Baz, !Ref Baf ] # expands the bound expression
+Foo: !If [ SomeCondition, Baz, !Ref Baf ]
 ```
 
 > **Note:** References in the values of the `Fn::Let` form are
@@ -620,16 +576,12 @@ Script: |
   echo "hello, $name"
 ```
 
-### `!Json`
-
-If its argument is a string it is parsed as JSON and the result is the parsed
-JSON data, and if its argument is a map it is encoded as JSON and the result
-is the JSON string.
+### `!JsonParse`, `!JsonDump`
 
 ```yaml
 # INPUT
-Foo1: !Json '{"Bar":{"Baz":"baf"}}'
-Foo2: !Json
+Foo1: !JsonParse '{"Bar":{"Baz":"baf"}}'
+Foo2: !JsonDump
   Bar:
     Baz: baf
 ```
@@ -641,16 +593,14 @@ Foo1:
 Foo2: '{"Bar":{"Baz":"baf"}}'
 ```
 
-### `!Yaml`
-
-Similar to the `!Json` macro, but for YAML:
+### `!YamlParse`, `!YamlDump`
 
 ```yaml
 # INPUT
-Foo1: !Yaml |
+Foo1: !YamlParse |
   Bar:
     Baz: baf
-Foo2: !Yaml
+Foo2: !YamlDump
   Bar:
     Baz: baf
 ```

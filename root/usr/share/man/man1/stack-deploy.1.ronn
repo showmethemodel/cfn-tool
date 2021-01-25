@@ -15,6 +15,9 @@ template named infra/<template>.yml.
 
 ## OPTIONS
 
+  * `-c`:
+    Create new stack (default is to update an existing stack).
+
   * `-h`:
     Print usage info and exit.
 

@@ -2,11 +2,19 @@
 
 set -e -o pipefail
 
+quit-ok() {
+  success "$1"
+  exit
+}
+
 mydir="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 . "$mydir/.fns"
 
-tpl_tmpfile=$(mktemp)
+outfile=$(mktemp)
 tmpdir=$(mktemp -d)
+change_set_ids=$(mktemp)
+
+export change_set_ids
 
 usage() {
   man -P 'less -XE' $(basename $0)
@@ -14,9 +22,11 @@ usage() {
 }
 
 dryrun=false
+changeset=UPDATE
 
-while getopts "hnv" o; do
+while getopts "chnov" o; do
   case "${o}" in
+    c) changeset=CREATE ;;
     h) usage ;;
     n) dryrun=true ;;
     v) verbose=true ;;
@@ -30,6 +40,7 @@ stack_name=$1; shift
 
 tag_name=$stack_name/$USER/$(date -u +%Y-%m-%d-%H%M%S)
 export Zone=$(echo "$stack_name" |cut -d- -f1)
+changeset_name=${stack_name}-$(uuidgen -t |tr -d -)
 
 template_base=infra/$(echo "$stack_name" |cut -d- -f2-)
 template=${template_base}.yml
@@ -44,31 +55,79 @@ info "Packaging..."
 template-package \
   ${verbose:+-v} \
   --temp-dir $tmpdir \
-  --out-file $tpl_tmpfile \
+  --out-file $outfile \
   --s3-bucket $bucket \
   --s3-prefix templates/ \
   $template \
   || abort
 
-notice "Base template written to $tpl_tmpfile..."
+notice "Base template written to $outfile..."
 
 info "Validating..."
 
-info=$(aws cloudformation validate-template --template-body "$(cat $tpl_tmpfile)") || abort
+info=$(aws cloudformation validate-template --template-body "$(cat $outfile)") || abort
 keys=$(echo "$info" |jt Parameters ParameterKey %)
-params="Version=$(git_id)"
+params="ParameterKey=Version,ParameterValue=$(git_id)"
 
 for key in $keys; do
-  [ -z "${!key}" ] || params="$params ${key}=${!key}"
+  [ -z "${!key}" ] || params="$params ParameterKey=${key},ParameterValue=${!key}"
 done
 
-if $dryrun; then
-  success "DRYRUN: OK"
-  exit
-fi
+$dryrun && quit-ok "DRYRUN: OK" || true
 
 info "Uploading templates to S3..."
 aws s3 sync --size-only $tmpdir s3://$bucket/templates/
+
+info "Creating change set..."
+
+aws cloudformation create-change-set \
+  --stack-name $stack_name \
+  --template-body "$(cat $outfile)" \
+  ${params:+--parameters $params} \
+  --capabilities CAPABILITY_NAMED_IAM CAPABILITY_IAM CAPABILITY_AUTO_EXPAND \
+  --tags Key=Zone,Value=$Zone \
+  --change-set-name $changeset_name \
+  --change-set-type $changeset \
+  --include-nested-stacks \
+  |jt Id % > $change_set_ids
+
+root_change_set_id=$(cat $change_set_ids)
+
+while [ $(cat $change_set_ids |grep . |wc -l) -gt 0 ]; do
+  change_set_id=$(cat $change_set_ids |head -1)
+  aws cloudformation wait change-set-create-complete --change-set-name $change_set_id
+  aws cloudformation describe-change-set --change-set-name $change_set_id \
+    |jt \
+      [ StackName % ] \
+        Changes \
+          ResourceChange \
+            [ Action % ] \
+            [ Replacement % ] \
+            [ LogicalResourceId % ] \
+            [ ResourceType % ] \
+            [ PhysicalResourceId % ] \
+            [ ChangeSetId % ] \
+    |while read stack_name action replacement logical_resource_id resource_type \
+      physical_resource_id change_set_id; do
+      if [ "$resource_type" = 'AWS::CloudFormation::Stack' ]; then
+        cat $change_set_ids |grep -q $change_set_id \
+          || echo $change_set_id >> $change_set_ids
+      else
+        cat <<EOT |paste -sd \\t
+$stack_name
+$action
+$replacement
+$logical_resource_id
+$resource_type
+$physical_resource_id
+EOT
+    fi
+  done
+  sed -i 1d $change_set_ids
+done |sort -k1,1 -k4,4 -k6,6 |column -t
+
+info "Press enter to continue or ctrl-c to abort..."
+read
 
 start_time=$(date -u +%Y-%m-%dT%H:%M:%S.000Z)
 
@@ -79,16 +138,12 @@ event_log() {
 
 info "Deploying..."
 
-aws cloudformation deploy \
-  --stack-name $stack_name \
-  --template-file $tpl_tmpfile \
-  --capabilities CAPABILITY_NAMED_IAM CAPABILITY_IAM CAPABILITY_AUTO_EXPAND \
-  ${params:+--parameter-overrides $params} \
-  --tags Zone=$Zone \
-  | grep . \
-  || { event_log; abort; }
+aws cloudformation execute-change-set --change-set-name $root_change_set_id
 
 errors=0
+
+aws cloudformation wait stack-$(echo $changeset |tr '[A-Z]' '[a-z]')-complete \
+  --stack-name $stack_name >/dev/null 2>&1 || { event_log; abort; }
 
 info "Setting termination protection..."
 

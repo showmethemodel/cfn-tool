@@ -1,0 +1,387 @@
+# encoding: utf-8
+template-package(1) -- cloudformation template processing
+=========================================================
+
+## SYNOPSIS
+
+`template-package` [<OPTION>]... <file>
+
+## DESCRIPTION
+
+The **template-package** program processes the CloudFormation YAML template
+<file> and prints the processed template to `stdout`. This processing includes
+caching nested templates and packages that need to be uploaded to S3 and
+expanding macros (see the `MACROS` section below).
+
+## OPTIONS
+
+  * `-b` <bucket>, `--s3-bucket`=<bucket>:
+    The name of the S3 bucket where CloudFormation resources will be uploaded.
+
+  * `-p` <prefix>, `--s3-prefix`=<prefix>:
+    The (optional) prefix prepended to the S3 key of CloudFormation resources
+    that will be uploaded.
+
+  * `-h`, `--help`:
+    Print usage info and exit.
+
+  * `-j`, `--json`:
+    Print processed template as JSON instead of as YAML.
+
+  * `-o` <file>, `--out-file`=<file>:
+    Write processed template to <file> instead of to `stdout`.
+
+  * `-t` *dir*, `--temp-dir`=*dir*:
+    Stage files in *dir* instead of creating a temporary directory.
+
+  * `-v`, `--verbose`:
+    Print extra diagnostic output to `stderr`.
+
+## MACROS
+
+The **template-package** program expands macros in CloudFormation templates.
+The following macros are built in, but you can extend them by writing your own
+in a JavaScript file (see the `!Require` macro below).
+
+Note the use of the `<<` property in the examples below. This built-in feature
+of YAML merges the associated value into the current object.
+
+  * `!Do` `[` <expr>, ... `]`
+
+    Evaluates one or more <expr>s (for side-effects, presumably), returning the
+    result of the last <expr>.
+
+    ```
+        # INPUT
+        Foo: !Do
+          - !Let {Foo: 100}
+          - !Ref Foo
+        Bar: !Ref Foo
+
+        # OUTPUT
+        Foo: 100
+        Bar: 100
+    ```
+
+  * `!File` *file*
+
+    Reads *file* and returns its contents as a string.
+
+    ```
+        # doit.sh
+        while true; do
+          echo hello, world!
+        done
+
+        # INPUT
+        Script: !File doit.sh
+
+        # OUTPUT
+        Script: |
+          while true; do
+            echo hello, world!
+          done
+    ```
+
+  * `!JsonDump` *value*, `!JsonParse` *json*
+
+    Convert to and from JSON.
+
+    ```
+        # INPUT
+        X: !JsonParse '{"Foo": "one", "Bar": "two"}'
+        Y: !JsonDump
+          Baz: three
+          Baf: four
+
+        # OUTPUT
+        X:
+          Foo: one
+          Bar: two
+        Y: '{"Baz": "three", "Baf": "four"}'
+    ```
+
+  * `!Let` <bindings>, `!Let` `[` <bindings>, <expr> `]`
+
+    Binds names to values which can be referenced with `!Ref`. When passed just
+    the <bindings> object the names are bound within the scope of the entire
+    template. When passed a <bindings> object and an <expr> the names are bound
+    only within the scope of the <expr>.
+
+    ```
+        # INPUT
+        <<: !Let
+          Global1:
+            Bar: asdf
+            Baz: !Ref Local1
+        Foo: !Let
+          - Local1: qwer
+          - !Ref Global1
+
+        # OUTPUT
+        Foo:
+          Bar: asdf
+          Baz: qwer
+    ```
+
+  * `!Merge [` *object*, ... `]`, `!DeepMerge [` *object*, ... `]`
+
+    Merges objects, shallow or deep.
+
+    ```
+        # INPUT
+        Foo: !Merge
+          - Uno: one
+          - Dos: two
+            Tres: three
+
+        # OUTPUT
+        Foo:
+          Uno: one
+          Dos: two
+          Tres: three
+    ```
+
+  * `!Package` *path*, `!Package` *options*
+
+    Given a *path*, uploads a file or directory to S3 and returns an object
+    with the `S3Bucket` and `S3Key` of the uploaded file. Directories are
+    compressed with `zip`(1) before upload. The filename in S3 is computed
+    from the MD5 hash of the file contents.
+
+    Alternatively, an options object allows more control:
+
+    `CacheKey:` *key* &mdash; Compute the S3 filename from the MD5 hash of the
+    file or directory path and the provided key instead of the file contents.
+
+    `Parse:` *bool* &mdash; If `true` recursively parse the file and expand
+    macros before packaging.
+
+    `Path:` *path* &mdash; The path of the file or directory to upload,
+    relative to this template.
+
+    Note: Hashes abbreviated below to save space.
+
+    ```
+        # INPUT
+        Foo: !Package services/job1/
+        Bar: !Package
+          CacheKey: foop
+          Parse: true
+          Path: lib/job2.yml
+
+        # OUTPUT
+        Foo:
+          S3Bucket: mybucket
+          S3Key: myprefix/4394...0931.zip
+        Bar:
+          S3Bucket: mybucket
+          S3Key: myprefix/6f59...3dc4.yml
+    ```
+
+  * `!PackageURI` *path*, `!PackageURI` *options*
+
+    The same as `!Package`, but returns an S3 URI.
+
+    ```
+        # INPUT
+        Foo: !PackageURI services/job1/
+
+        # OUTPUT
+        Foo: s3://mybucket/myprefix/4394...0931.zip
+    ```
+
+  * `!PackageURL` *path*, `!PackageURL` *options*
+
+    The same as `!Package`, but returns an S3 web URL.
+
+    ```
+        # INPUT
+        Foo: !PackageURL services/job1/
+
+        # OUTPUT
+        Foo: https://s3.amazonaws.com/mybucket/myprefix/4394...0931.zip
+    ```
+
+  * `!PackageTemplateURL` *path*, `!PackageTemplateURL` *options*
+
+    The same as `!Package`, but sets the `Parse` option to `true` and returns
+    an S3 web URL.
+
+    ```
+        # INPUT
+        Foo: !PackageURL lib/job2.yml
+
+        # OUTPUT
+        Foo: https://s3.amazonaws.com/mybucket/myprefix/6f59...3dc4.yml
+    ```
+
+  * `!Parameters` `[` *param*, ... `]`
+
+    Reduces the boilerplate associated with the `Parameters` section of the
+    CloudFormation template.
+
+    ```
+        # INPUT
+        <<: !Parameters
+          - Foo
+          - Bar Type=CommaDelimitedList AllowedValues=[true,false]
+
+        # OUTPUT
+        Parameters:
+          Foo:
+            Type: String
+          Bar:
+            Type: CommaDelimitedList
+            AllowedValues:
+              - true
+              - false
+    ```
+
+  * `!Require` <file>, `!Require` `[` <file>, ... `]`
+
+    Imports macros from the JavaScript <file> (see **CUSTOM MACROS** below).
+
+    ```
+        # INPUT
+        <<: !Require lib/case-macros
+        Foo: !UpperCase AsDf
+        Bar: !LowerCase AsDf
+
+        # OUTPUT
+        Foo: ASDF
+        Bar: asdf
+    ```
+
+  * `!Resources` <resources>
+
+    Reduces the boilerplate associated with the `Resources` section of the
+    CloudFormation template.
+
+    ```
+        # INPUT
+        <<: !Resources
+          MySg AWS::EC2::SecurityGroup Condition=CreateSg:
+            GroupDescription: my security group
+            VpcId: !Ref VpcId
+
+        # OUTPUT
+        Resources:
+          MySg:
+            Type: AWS::EC2::SecurityGroup
+            Condition: CreateSg
+            Properties:
+              GroupDescription: my security group
+              VpcId: !Ref VpcId
+    ```
+
+  * `!Return` *object*
+
+    Reduces the boilerplate associated with the `Outputs` section of the
+    CloudFormation template.
+
+    ```
+        # INPUT
+        <<: !Return
+          Foo: bar
+          Baz: baf
+
+        # OUTPUT
+        Outputs:
+          Foo:
+            Value: bar
+          Bar:
+            Value: baf
+    ```
+
+  * `!Shell` *script*
+
+    Evaluates *script* in the `bash`(1) shell, returning the shell's `stdout`.
+    The `CWD` of the shell is the directory of the template file. If the `-v`,
+    `--verbose` option is specified the shell's `stderr` is printed to `stderr`.
+
+    ```
+        # INPUT
+        Foo: !Shell |
+          make -c src 1>&2
+          echo -n src/a.out
+
+        # OUTPUT
+        Foo: src/a.out
+    ```
+
+  * `!Tags` *object*
+
+    Expands a map to an array of resource tag structures.
+
+    ```
+        # INPUT
+        Tags: !Tags
+          Foo: bar
+          Baz: baf
+
+        # OUTPUT
+        Tags:
+          - Key: Foo
+            Value: bar
+          - Key: Baz
+            Value: baf
+    ```
+
+  * `!TemplateFile` *file*
+
+    Recursively process *file*, returning the processed YAML.
+
+    ```
+        # config.yml
+        Foo: 100
+        Bar: true
+
+        # INPUT
+        Config: !TemplateFile config.yml
+
+        # OUTPUT
+        Config:
+          Foo: 100
+          Bar: true
+    ```
+
+  * `!YamlDump` *value*, `!YamlParse` *yaml*
+
+    Convert to and from YAML.
+
+    ```
+        # INPUT
+        X: !YamlParse |
+          Foo: one
+          Bar: two
+        Y: !YamlDump
+          Baz: three
+          Baf: four
+
+        # OUTPUT
+        X:
+          Foo: one
+          Bar: two
+        Y: |
+          Baz: three
+          Baf: four
+    ```
+
+## CUSTOM MACROS
+
+The built-in macros can be extended via JavaScript macro files which can be
+imported into a template with the `!Require` macro. The `defmacro`() method
+of the macro compiler is used to define these custom macros.
+
+```
+    # case-macros.js
+    module.exports = (compiler) => {
+      compiler.defmacro('UpperCase', x => x.toUpperCase());
+      compiler.defmacro('LowerCase', x => x.toLowerCase());
+    }
+```
+
+## EXIT STATUS
+
+Exits with a status of 1 if an error occurred, or 0 otherwise.
