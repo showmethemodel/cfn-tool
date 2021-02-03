@@ -98,15 +98,15 @@ while [ $(cat $change_set_ids |grep . |wc -l) -gt 0 ]; do
   aws cloudformation wait change-set-create-complete --change-set-name $change_set_id
   aws cloudformation describe-change-set --change-set-name $change_set_id \
     |jt \
-      [ StackName % ] \
+      [ StackName %=StackName ] \
         Changes \
           ResourceChange \
-            [ Action % ] \
-            [ Replacement % ] \
-            [ LogicalResourceId % ] \
-            [ ResourceType % ] \
-            [ PhysicalResourceId % ] \
-            [ ChangeSetId % ] \
+            [ Action %=Action ] \
+            [ Replacement %=Replace ] \
+            [ LogicalResourceId %=LogicalId ] \
+            [ ResourceType %=ResourceType ] \
+            [ PhysicalResourceId %=PhysicalId ] \
+            [ ChangeSetId %=ChangeSetId ] \
     |while read stack_name action replacement logical_resource_id resource_type \
       physical_resource_id change_set_id; do
       if [ "$resource_type" = 'AWS::CloudFormation::Stack' ]; then
@@ -121,10 +121,10 @@ $logical_resource_id
 $resource_type
 $physical_resource_id
 EOT
-    fi
-  done
+      fi
+    done
   sed -i 1d $change_set_ids
-done |sort -k1,1 -k4,4 -k6,6 |column -t
+done |sort -u -k1,1 -k4,4 -k6,6 |column -t
 
 echo -n $(info "Press enter to continue or ctrl-c to abort...")
 read
