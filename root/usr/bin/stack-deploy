@@ -39,7 +39,7 @@ stack_name=$1; shift
 [ -n "$stack_name" ] || abort "stack name required"
 
 tag_name=$stack_name/$USER/$(date -u +%Y-%m-%d-%H%M%S)
-export Zone=$(echo "$stack_name" |cut -d- -f1)
+export CFN_TOOLS_ZONE=$(echo "$stack_name" |cut -d- -f1)
 changeset_name=${stack_name}-$(uuidgen -t |tr -d -)
 
 template_base=infra/$(echo "$stack_name" |cut -d- -f2-)
@@ -78,14 +78,14 @@ $dryrun && quit-ok "DRYRUN: OK" || true
 info "Uploading templates to S3..."
 aws s3 sync --size-only $tmpdir s3://$bucket/templates/
 
-info "Creating change set..."
+info "Creating change sets..."
 
 aws cloudformation create-change-set \
   --stack-name $stack_name \
   --template-body "$(cat $outfile)" \
   ${params:+--parameters $params} \
   --capabilities CAPABILITY_NAMED_IAM CAPABILITY_IAM CAPABILITY_AUTO_EXPAND \
-  --tags Key=Zone,Value=$Zone \
+  --tags Key=Zone,Value=$CFN_TOOLS_ZONE \
   --change-set-name $changeset_name \
   --change-set-type $changeset \
   --include-nested-stacks \
@@ -93,9 +93,16 @@ aws cloudformation create-change-set \
 
 root_change_set_id=$(cat $change_set_ids)
 
+change_set_log() {
+  aws cloudformation describe-change-set --change-set-name $1 |jt StatusReason %
+}
+
 while [ $(cat $change_set_ids |grep . |wc -l) -gt 0 ]; do
   change_set_id=$(cat $change_set_ids |head -1)
-  aws cloudformation wait change-set-create-complete --change-set-name $change_set_id
+  echo $change_set_id 1>&2
+  aws cloudformation wait change-set-create-complete \
+    --change-set-name $change_set_id >/dev/null 2>&1 \
+    || abort "$(change_set_log $change_set_id)"
   aws cloudformation describe-change-set --change-set-name $change_set_id \
     |jt \
       [ StackName %=StackName ] \

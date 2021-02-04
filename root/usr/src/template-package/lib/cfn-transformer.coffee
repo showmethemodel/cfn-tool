@@ -285,20 +285,25 @@ class CfnTransformer extends YamlTransformer
 
     @defmacro 'Shell', (form) =>
       form = if isArray(form) then form[0] else form
-      @execShell(form)
+      key  = JSON.stringify {shell: [@template, form]}
+      @cache[key] = @execShell(form) unless @cache[key]?
+      @cache[key]
 
     @defmacro 'Package', (form) =>
       form = if isArray(form) then form[0] else form
       form = {Path: form} if isString(form)
       {Path, CacheKey, Parse} = form
-      (
-        if isDirectory(Path)
-          @writeDir(Path, CacheKey)
-        else if Parse
-          @writeTemplate(Path, CacheKey)
-        else
-          @writeFile(Path, CacheKey)
-      ).code
+      key  = JSON.stringify {package: [@userPath(Path), CacheKey, Parse]}
+      if not @cache[key]?
+        @cache[key] = (
+          if isDirectory(Path)
+            @writeDir(Path, CacheKey)
+          else if Parse
+            @writeTemplate(Path, CacheKey)
+          else
+            @writeFile(Path, CacheKey)
+        ).code
+      @cache[key]
 
     @defmacro 'PackageURL', (form) =>
       form = if isArray(form) then form[0] else form
@@ -390,9 +395,10 @@ class CfnTransformer extends YamlTransformer
     @bindstack.pop()
     ret
 
+  canonicalKeyPath: () -> [@template].concat(@keystack)
+
   canonicalHash: (fileOrDir, key) ->
-    canon = encodeURIComponent(@userPath(fileOrDir))
-    if key then md5("#{canon}/#{key}") else md5Path(fileOrDir)
+    if key then md5(JSON.stringify([@canonicalKeyPath(),key])) else md5Path(fileOrDir)
 
   writePaths: (fileName, ext = '') ->
     fileName = "#{fileName}#{ext}"
@@ -442,7 +448,7 @@ class CfnTransformer extends YamlTransformer
     ret
 
   pushFileCaching: (file, f) ->
-    key = @userPath(file)
+    key = JSON.stringify {pushFileCaching: @userPath(file)}
     @cache[key] = @pushFile(file, f) unless @cache[key]
     @cache[key]
 

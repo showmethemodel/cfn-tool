@@ -24,6 +24,7 @@ success() { bold "$(green "$@")"; }
 ## helpers ####################################################################
 
 [ -f .cfn-tools ] && . .cfn-tools || true
+export CFN_TOOLS_BUCKET
 
 bucket=$CFN_TOOLS_BUCKET
 

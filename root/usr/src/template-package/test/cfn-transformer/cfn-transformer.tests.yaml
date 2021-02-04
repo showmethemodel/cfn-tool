@@ -304,7 +304,7 @@ packages regular files:
 
   expected:
     Foo:
-      Bar: https://s3.amazonaws.com/foop/templates/3858f62230ac3c915f300c664312c63f.txt
+      Bar: https://s3.amazonaws.com/foop/templates/e414662072572cdc75dfebea50d5bf9b.txt
       Baz:
         S3Bucket: foop
         S3Key: templates/6f5902ac237024bdd0c176cb93063dc4.txt
