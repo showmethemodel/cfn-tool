@@ -4,7 +4,7 @@ stack-deploy(1) -- deploy cloudformation stacks
 
 ## SYNOPSIS
 
-`stack-deploy` `[-hv]` <stackname>
+`stack-deploy` `[-chnvy]` <stackname>
 
 ## DESCRIPTION
 
@@ -26,6 +26,9 @@ template named infra/<template>.yml.
 
   * `-v`:
     Print extra diagnostic output while deploying.
+
+  * `-y`:
+    Don't wait for change set confirmation before deploying.
 
 ## EXIT STATUS
 

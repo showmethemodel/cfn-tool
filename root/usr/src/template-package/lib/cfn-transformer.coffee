@@ -61,6 +61,12 @@ hashMap = (args...) ->
 isDirectory = (file) ->
   fs.statSync(file).isDirectory()
 
+reduceKv = (map, f) ->
+  Object.keys(map).reduce(((xs, k) -> f(xs, k, map[k])), {})
+
+notEmpty = (map) ->
+  Object.keys(map or {}).length > 0
+
 md5 = (data) ->
   crypto.createHash("md5").update(data).digest("hex")
 
@@ -248,10 +254,12 @@ class CfnTransformer extends YamlTransformer
       ), {})
 
     @defmacro 'Return', (form) =>
-      Outputs: Object.keys(form).reduce(
-        (xs, k) => merge(xs, hashMap(k, {Value: form[k]}))
-        {}
-      )
+      Outputs: reduceKv form, (xs, k, v) =>
+        [name, opts...] = k.split(/ +/)
+        xport = if notEmpty(opts = parseKeyOpts(opts))
+          opts.Name = @walk {'Fn::Sub': opts.Name} if opts.Name
+          {Export: opts}
+        merge(xs, hashMap(name, merge({Value: v}, xport)))
 
     @defmacro 'Resources', (form) =>
       ret = {}

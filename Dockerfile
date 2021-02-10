@@ -28,6 +28,8 @@ ADD . /tmp/cfn-tools
 RUN (cd /tmp/cfn-tools && git archive --format=tar HEAD root) \
   | (cd / && tar --strip-components=1 -xf -)
 
+RUN npm install -g aws-sdk
+
 RUN npm install -g /usr/src/template-package/
 
 RUN find /usr/share/man -type f -name '*.ronn' -exec ronn -r {} \; && \

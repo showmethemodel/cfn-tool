@@ -272,6 +272,7 @@ expands Fn::Return macros:
     <<: !Return
       Foop: !Ref Foo
       Barp: !GetAtt Bar.ARN
+      Bazp Name=${$CFN_TOOLS_ZONE}-${$CFN_TOOLS_REGION}-bazp: 123
 
   expected:
     Outputs:
@@ -283,6 +284,10 @@ expands Fn::Return macros:
           Fn::GetAtt:
             - Bar
             - ARN
+      Bazp:
+        Value: 123
+        Export:
+          Name: test-us-east-1-bazp
 
 executes Fn::Shell commands:
 

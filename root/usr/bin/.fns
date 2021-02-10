@@ -28,6 +28,8 @@ export CFN_TOOLS_BUCKET
 
 bucket=$CFN_TOOLS_BUCKET
 
+export CFN_TOOLS_REGION=$AWS_DEFAULT_REGION
+
 assert_vars() {
   [ $CFN_TOOLS_BUCKET ] || {
     warn required env var CFN_TOOLS_BUCKET not set

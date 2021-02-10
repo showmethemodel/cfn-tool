@@ -16,6 +16,10 @@ execShell = (command, opts) ->
 s3bucket = 'foop'
 s3prefix = 'templates/'
 
+process.env.CFN_TOOLS_ZONE    = 'test'
+process.env.CFN_TOOLS_BUCKET  = 'test-bucket'
+process.env.CFN_TOOLS_REGION  = 'us-east-1'
+
 testCase = (file) ->
   #cases     = yaml.safeLoad(xf.transformFile(file))
   text      = fs.readFileSync(file).toString('utf-8')

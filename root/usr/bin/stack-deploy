@@ -23,13 +23,15 @@ usage() {
 
 dryrun=false
 changeset=UPDATE
+yes=false
 
-while getopts "chnov" o; do
+while getopts "chnvy" o; do
   case "${o}" in
     c) changeset=CREATE ;;
     h) usage ;;
     n) dryrun=true ;;
     v) verbose=true ;;
+    y) yes=true ;;
     ?) abort ;;
   esac
 done
@@ -133,8 +135,10 @@ EOT
   sed -i 1d $change_set_ids
 done |sort -u -k1,1 -k4,4 -k6,6 |column -t
 
-echo -n $(info "Press enter to continue or ctrl-c to abort...")
-read
+$yes || {
+  echo -n $(info "Press enter to continue or ctrl-c to abort...")
+  read
+}
 
 start_time=$(date -u +%Y-%m-%dT%H:%M:%S.000Z)
 
