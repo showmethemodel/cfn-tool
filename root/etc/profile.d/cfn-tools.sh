@@ -53,3 +53,4 @@ _cfn_prompt_command() {
 
 export PS1=
 export PROMPT_COMMAND=_cfn_prompt_command
+export NODE_PATH=/usr/lib/node_modules

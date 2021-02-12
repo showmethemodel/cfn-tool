@@ -3,7 +3,7 @@ FROM amazonlinux:2017.12
 RUN yum -y install yum-utils
 RUN yum-config-manager --enable epel && yum -y update
 RUN yum -y groupinstall 'Development Tools'
-RUN yum -y install procps net-tools tree sudo man which \
+RUN yum -y install procps net-tools tree sudo man which bind-utils \
       mlocate python2-pip git xz jq dialog rsync ruby ruby-devel
 RUN amazon-linux-extras install -y docker
 
