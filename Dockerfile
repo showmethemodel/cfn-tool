@@ -23,12 +23,12 @@ RUN curl https://git.savannah.gnu.org/cgit/parallel.git/plain/src/parallel > /us
 RUN curl -L https://nodejs.org/dist/v12.19.0/node-v12.19.0-linux-x64.tar.xz \
   |unxz - |(cd /usr && tar --strip-components 1 -xf -)
 
+RUN npm install -g aws-sdk
+
 ADD . /tmp/cfn-tools
 
 RUN (cd /tmp/cfn-tools && git archive --format=tar HEAD root) \
   | (cd / && tar --strip-components=1 -xf -)
-
-RUN npm install -g aws-sdk
 
 RUN npm install -g /usr/src/template-package/
 
