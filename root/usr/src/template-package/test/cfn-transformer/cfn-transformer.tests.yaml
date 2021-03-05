@@ -180,12 +180,13 @@ expands Fn::Resources macros:
 
   template:
     <<: !Let
+      Nonce: Foop
       BucketTpl:
         Type: AWS::S3::Bucket
         Properties:
           BucketName: !Ref Name
     <<: !Resources
-      MyBucket AWS::S3::Bucket Condition=Prod DependsOn=[X,Y,Z]:
+      MyBucket${Nonce} AWS::S3::Bucket Condition=Prod DependsOn=[X,Y,Z]:
         BucketName: mybucket
       OtherBucket:
         Type: AWS::S3::Bucket
@@ -198,7 +199,7 @@ expands Fn::Resources macros:
 
   expected:
     Resources:
-      MyBucket:
+      MyBucketFoop:
         Condition: Prod
         DependsOn:
           - X

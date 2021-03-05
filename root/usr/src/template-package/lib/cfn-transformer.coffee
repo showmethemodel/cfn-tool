@@ -265,6 +265,7 @@ class CfnTransformer extends YamlTransformer
       ret = {}
       for logicalName, resource of form
         [logicalName, Type, opts...] = logicalName.split(/ +/)
+        logicalName = @walk {'Fn::Sub': logicalName}
         ret[logicalName] = if not Type
           if (m = @resourceMacros[resource.Type]) then m(resource) else resource
         else
