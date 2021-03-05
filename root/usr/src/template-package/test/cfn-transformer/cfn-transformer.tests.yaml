@@ -293,7 +293,7 @@ expands Fn::Return macros:
 executes Fn::Shell commands:
 
   template:
-    Foo: !Shell echo -n hello, world!
+    Foo: !Shell echo hello, world!
 
   expected:
     Foo: hello, world!
@@ -343,7 +343,7 @@ runs build scripts before packaging:
 
   template:
     Foo:
-      Bar: !PackageURL [ !Shell 'make -C data data2.txt 1>&2 ; echo -n data/data2.txt' ]
+      Bar: !PackageURL [ !Shell 'make -C data data2.txt 1>&2 ; echo data/data2.txt' ]
 
   expected:
     Foo:

@@ -295,7 +295,7 @@ class CfnTransformer extends YamlTransformer
     @defmacro 'Shell', (form) =>
       form = if isArray(form) then form[0] else form
       key  = JSON.stringify {shell: [@template, form]}
-      @cache[key] = @execShell(form) unless @cache[key]?
+      @cache[key] = (@execShell(form) or '').replace(/\n$/, '') unless @cache[key]?
       @cache[key]
 
     @defmacro 'Package', (form) =>
