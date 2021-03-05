@@ -86,5 +86,6 @@ docker run -it --rm --net=host \
   -e AWS_ACCESS_KEY_ID \
   -e AWS_SECRET_ACCESS_KEY \
   -e AWS_DEFAULT_REGION \
+  -e AWS_ACCOUNT_ID \
   $@ \
   $TAG:$VERSION /usr/bin/startup.sh

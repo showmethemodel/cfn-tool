@@ -24,12 +24,14 @@ usage() {
 dryrun=false
 changeset=UPDATE
 yes=false
+template_specified=false
 
-while getopts "chnvy" o; do
+while getopts "chnt:vy" o; do
   case "${o}" in
     c) changeset=CREATE ;;
     h) usage ;;
     n) dryrun=true ;;
+    t) template_specified=true ; template=$OPTARG ;;
     v) verbose=true ;;
     y) yes=true ;;
     ?) abort ;;
@@ -40,17 +42,22 @@ shift $((OPTIND-1))
 stack_name=$1; shift
 [ -n "$stack_name" ] || abort "stack name required"
 
+CFN_TOOLS_GIT_ID=$(git_id)
 tag_name=$stack_name/$USER/$(date -u +%Y-%m-%d-%H%M%S)
-export CFN_TOOLS_ZONE=$(echo "$stack_name" |cut -d- -f1)
 changeset_name=${stack_name}-$(uuidgen -t |tr -d -)
 
-template_base=infra/$(echo "$stack_name" |cut -d- -f2-)
-template=${template_base}.yml
+if ! $template_specified; then
+  CFN_TOOLS_ZONE=$(echo "$stack_name" |cut -d- -f1)
+  template_base=infra/$(echo "$stack_name" |cut -d- -f2-)
+  template=${template_base}.yml
+  assert_vars
+fi
+
+export CFN_TOOLS_ZONE CFN_TOOLS_GIT_ID
+
 [ -f $template ] || abort "file not found: $template"
 
-assert_vars
-
-notice "$stack_name -> $(git_id)"
+notice "$stack_name -> $CFN_TOOLS_GIT_ID"
 
 info "Packaging..."
 
@@ -69,16 +76,20 @@ info "Validating..."
 
 info=$(aws cloudformation validate-template --template-body "$(cat $outfile)") || abort
 keys=$(echo "$info" |jt Parameters ParameterKey %)
-params="ParameterKey=Version,ParameterValue=$(git_id)"
 
 for key in $keys; do
-  [ -z "${!key}" ] || params="$params ParameterKey=${key},ParameterValue=${!key}"
+  if [ -n "${!key}" ]; then
+    info "Setting parameter: ${key}=${!key}"
+    params="$params ParameterKey=${key},ParameterValue=${!key}"
+  fi
 done
 
 $dryrun && quit-ok "DRYRUN: OK" || true
 
-info "Uploading templates to S3..."
-aws s3 sync --size-only $tmpdir s3://$bucket/templates/
+if ! $template_specified; then
+  info "Uploading templates to S3..."
+  aws s3 sync --size-only $tmpdir s3://$bucket/templates/
+fi
 
 info "Creating change sets..."
 

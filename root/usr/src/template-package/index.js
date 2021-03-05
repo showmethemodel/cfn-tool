@@ -87,7 +87,8 @@ function parseArgv(argv) {
     }
   );
 
-  opts.template = opts._[0];
+  opts.template     = opts._[0];
+  opts['temp-dir']  = opts['temp-dir'] || '/tmp';
 
   if (opts.help)        usage();
   if (!opts.template)   abort('template file required');

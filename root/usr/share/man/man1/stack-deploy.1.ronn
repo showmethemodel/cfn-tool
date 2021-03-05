@@ -24,6 +24,9 @@ template named infra/<template>.yml.
   * `-n`:
     Dry run mode: package templates but do not upload files to S3 nor deploy.
 
+  * `-t` <template>:
+    Deploy <template> instead of using zone and infra convention.
+
   * `-v`:
     Print extra diagnostic output while deploying.
 
