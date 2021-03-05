@@ -263,14 +263,14 @@ class CfnTransformer extends YamlTransformer
 
     @defmacro 'Resources', (form) =>
       ret = {}
-      for logicalName, resource of form
-        [logicalName, Type, opts...] = logicalName.split(/ +/)
-        logicalName = @walk {'Fn::Sub': logicalName}
-        ret[logicalName] = if not Type
-          if (m = @resourceMacros[resource.Type]) then m(resource) else resource
+      for id, body of form
+        [id, Type, opts...] = id.split(/ +/)
+        id = @walk {'Fn::Sub': id}
+        ret[id] = if not Type
+          if (m = @resourceMacros[body.Type]) then m(body) else body
         else
-          resource = merge({Type}, parseKeyOpts(opts), {Properties: resource})
-          if (m = @resourceMacros[Type]) then m(resource) else resource
+          body = merge({Type}, parseKeyOpts(opts), {Properties: body})
+          if (m = @resourceMacros[Type]) then m(body) else body
       Resources: ret
 
     @defmacro 'Attr', (form) =>
