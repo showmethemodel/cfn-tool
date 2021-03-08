@@ -21,23 +21,31 @@ usage() {
   exit;
 }
 
+opts=$(getopt -o chl:nt:vy --long profile:,region:,create,help,linter:,dryrun,template:,verbose,yes -n parse-options -- "$@")
+if [ $? != 0 ]; then abort; fi
+eval set -- "$opts"
+
 dryrun=false
 changeset=UPDATE
 yes=false
 template_specified=false
+linter=
 
-while getopts "chnt:vy" o; do
-  case "${o}" in
-    c) changeset=CREATE ;;
-    h) usage ;;
-    n) dryrun=true ;;
-    t) template_specified=true ; template=$OPTARG ;;
-    v) verbose=true ;;
-    y) yes=true ;;
-    ?) abort ;;
+while true; do
+  case "$1" in
+    --profile)      CFN_TOOLS_AWS_OPTS="$CFN_TOOLS_AWS_OPTS --profile $2" ; shift 2 ;;
+    --region)       CFN_TOOLS_AWS_OPTS="$CFN_TOOLS_AWS_OPTS --region $2" ; shift 2 ;;
+    -c|--create)    changeset=CREATE ; shift ;;
+    -h|--help)      usage ; shift ;;
+    -l|--linter)    linter=$2 ; shift 2 ;;
+    -n|--dryrun)    dryrun=true ; shift ;;
+    -t|--template)  template_specified=true ; template=$2 ; shift 2 ;;
+    -v|--verbose)   verbose=true ; shift ;;
+    -y|--yes)       yes=true ; shift ;;
+    --)             shift; break ;;
+    *) break ;;
   esac
 done
-shift $((OPTIND-1))
 
 stack_name=$1; shift
 [ -n "$stack_name" ] || abort "stack name required"
@@ -63,9 +71,10 @@ info "Packaging..."
 
 template-package \
   ${verbose:+-v} \
-  --temp-dir $tmpdir \
-  --out-file $outfile \
-  --s3-bucket $bucket \
+  ${linter:+--linter "$linter"} \
+  --temp-dir "$tmpdir" \
+  --out-file "$outfile" \
+  --s3-bucket "$bucket" \
   --s3-prefix templates/ \
   $template \
   || abort
@@ -97,8 +106,8 @@ aws cloudformation create-change-set \
   --stack-name $stack_name \
   --template-body "$(cat $outfile)" \
   ${params:+--parameters $params} \
+  ${CFN_TOOLS_ZONE:+--tags Key=Zone,Value=$CFN_TOOLS_ZONE} \
   --capabilities CAPABILITY_NAMED_IAM CAPABILITY_IAM CAPABILITY_AUTO_EXPAND \
-  --tags Key=Zone,Value=$CFN_TOOLS_ZONE \
   --change-set-name $changeset_name \
   --change-set-type $changeset \
   --include-nested-stacks \

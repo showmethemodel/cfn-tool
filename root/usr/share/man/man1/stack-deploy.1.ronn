@@ -15,23 +15,48 @@ template named infra/<template>.yml.
 
 ## OPTIONS
 
-  * `-c`:
+  * `--profile`=<profile>:
+    Use AWS IAM <profile> when making requests to the AWS API.
+
+  * `--region`=<region>:
+    Use AWS <region> when making requests to the AWS API.
+
+  * `-c`, `--create`:
     Create new stack (default is to update an existing stack).
 
-  * `-h`:
+  * `-h`, `--help`:
     Print usage info and exit.
 
-  * `-n`:
-    Dry run mode: package templates but do not upload files to S3 nor deploy.
+  * `-l`, `--linter`=<linter>:
+    Run <linter> on each processed template and display the results. The
+    <linter> should be a program that expects one argument--the template
+    file path.
 
-  * `-t` <template>:
+  * `-n`, `--dryrun`:
+    Package templates but do not upload files to S3 nor deploy.
+
+  * `-t`, `--template`=<template>:
     Deploy <template> instead of using zone and infra convention.
 
-  * `-v`:
+  * `-v`, `--verbose`:
     Print extra diagnostic output while deploying.
 
-  * `-y`:
+  * `-y`, `--yes`:
     Don't wait for change set confirmation before deploying.
+
+## ENVIRONMENT VARIABLES
+
+The following environment variables may be used in lieu of profiles for the
+AWS credentials provider chain.
+
+  * `AWS_DEFAULT_REGION`:
+    The AWS region.
+
+  * `AWS_ACCESS_KEY_ID`:
+    The AWS access key identifier (ie. 'AKIAXXXXXXXXXXXXXXXX').
+
+  * `AWS_SECRET_ACCESS_KEY`:
+    The AWS secret key.
 
 ## EXIT STATUS
 
