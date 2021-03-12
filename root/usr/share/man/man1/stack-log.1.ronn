@@ -4,7 +4,7 @@ stack-log(1) -- log cloudformation stacks
 
 ## SYNOPSIS
 
-`stack-log` `[-h]` <stackname> `[`<timestamp>`]`
+`stack-log` [<OPTIONS>...] <stackname> [<timestamp>]
 
 ## DESCRIPTION
 
@@ -16,8 +16,28 @@ Example timestamp: 2020-07-16T18:51:03.000Z
 
 ## OPTIONS
 
-  * `-h`:
+  * `--profile`=<profile>:
+    Use AWS IAM <profile> when making requests to the AWS API.
+
+  * `--region`=<region>:
+    Use AWS <region> when making requests to the AWS API.
+
+  * `-h`, `--help`:
     Print usage info and exit.
+
+## ENVIRONMENT VARIABLES
+
+The following environment variables may be used in lieu of profiles for the
+AWS credentials provider chain.
+
+  * `AWS_DEFAULT_REGION`:
+    The AWS region.
+
+  * `AWS_ACCESS_KEY_ID`:
+    The AWS access key identifier (ie. 'AKIAXXXXXXXXXXXXXXXX').
+
+  * `AWS_SECRET_ACCESS_KEY`:
+    The AWS secret key.
 
 ## EXIT STATUS
 

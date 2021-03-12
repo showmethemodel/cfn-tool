@@ -160,7 +160,7 @@ interpolateSub = (form) ->
 #=============================================================================#
 
 class CfnTransformer extends YamlTransformer
-  constructor: ({@basedir, @tempdir, @cache, @s3bucket, @s3prefix, @verbose} = {}) ->
+  constructor: ({@basedir, @tempdir, @cache, @s3bucket, @s3prefix, @verbose, @linter} = {}) ->
     super()
 
     @cache          ?= {}
@@ -387,10 +387,10 @@ class CfnTransformer extends YamlTransformer
     console.error.apply(console, msg) if @verbose
     msg.join(' ')
 
-  execShell: (command, opts) ->
+  execShell: (command, opts, throwOnNonZeroStatus=true) ->
     try
       res = spawnSync(command, merge({stdio: 'pipe', shell: '/bin/bash'}, opts))
-      throw res if res.status isnt 0
+      throw res if res.status isnt 0 and throwOnNonZeroStatus
       @debug x if (x = res.stderr?.toString('utf-8'))
       res.stdout?.toString('utf-8')
     catch e
@@ -420,11 +420,19 @@ class CfnTransformer extends YamlTransformer
     ret
 
   transformTemplateFile: (file) ->
-    xformer = new @.constructor({@basedir, @tempdir, @cache, @s3bucket, @s3prefix, @verbose})
+    xformer = new @.constructor({@basedir, @tempdir, @cache, @s3bucket, @s3prefix, @verbose, @linter})
     xformer.transformFile(file)
 
   writeTemplate: (file, key) ->
-    @writeText(@transformTemplateFile(file), fileExt(file), key)
+    ret = @writeText(@transformTemplateFile(file), fileExt(file), key)
+    if @linter
+      try
+        console.log("LINTING: #{@userPath(file)}...")
+        lint = (@execShell("#{@linter} #{ret.tmpPath}", null, false) or '').trimRight()
+        console.log(lint) if lint
+      catch e
+        console.error(e.message)
+    ret
 
   writeFile: (file, key) ->
     ret = @writePaths(@canonicalHash(file, key), fileExt(file))

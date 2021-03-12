@@ -4,7 +4,7 @@ stack-deploy(1) -- deploy cloudformation stacks
 
 ## SYNOPSIS
 
-`stack-deploy` `[-chnvy]` <stackname>
+`stack-deploy` [<OPTIONS>...] <stackname>
 
 ## DESCRIPTION
 
@@ -14,12 +14,6 @@ config/<zone>.yml and the <template> must correspond to a cloudformation
 template named infra/<template>.yml.
 
 ## OPTIONS
-
-  * `--profile`=<profile>:
-    Use AWS IAM <profile> when making requests to the AWS API.
-
-  * `--region`=<region>:
-    Use AWS <region> when making requests to the AWS API.
 
   * `-c`, `--create`:
     Create new stack (default is to update an existing stack).
@@ -33,7 +27,7 @@ template named infra/<template>.yml.
     file path.
 
   * `-n`, `--dryrun`:
-    Package templates but do not upload files to S3 nor deploy.
+    Package and lint templates but do not upload to S3 nor deploy.
 
   * `-t`, `--template`=<template>:
     Deploy <template> instead of using zone and infra convention.

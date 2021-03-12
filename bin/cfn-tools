@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-prog=$0
+prog=$(basename $0)
 
 warn() { [ $# -gt 0 ] && echo $prog: "$@" 1>&2; }
 abort() { warn "$@"; exit 1; }
@@ -8,53 +8,91 @@ abort() { warn "$@"; exit 1; }
 usage() {
   warn "$@"
   cat <<EOT
-USAGE: $(basename $prog) [-hd] [-- DOCKEROPT...]
+USAGE: $prog [OPTIONS...] [-- DOCKEROPTIONS...]
 
-  Starts the cfn-tools docker container. Use -d option to have the container
-  set up to use the AWS nameservers; this resolves domain names to the inter-
-  nal IP addresses in Amazon split-horizon DNS.
+  Starts the cfn-tools docker container.
 
 OPTIONS:
-  -p <host:container>   Map <host> port on host to <container> port in the container.
-  -d <nameserver>       Use <nameserver> for DNS resolution.
-  -h                    Print this and exit.
+  -c, --command=<command>     Execute <command> in the shell and exit.
+  -h, --help                  Print this and exit.
+  -p, --profile=<profile>     Configure the AWS credentials profile.
+  -r, --region=<region>       Configure AWS region.
 EOT
   exit;
 }
 
-portmaps=()
+opts=$(getopt -o c:p:r:h --long command:,profile:,region:,help -n parse-options -- "$@")
+if [ $? != 0 ]; then abort; fi
+eval set -- "$opts"
 
-while getopts "hd:p:" o; do
-  case "${o}" in
-    p) portmaps+=("-p $OPTARG") ;;
-    d) NAMESERVER="--dns=$OPTARG" ;;
-    h) usage ;;
-    ?) abort ;;
+with_terminal=-t
+CFN_TOOLS_AWS_PROFILE=
+
+while true; do
+  case "$1" in
+    -c|--command) CFN_TOOLS_CMD=$2 ; with_terminal= ; shift 2 ;;
+    -p|--profile) CFN_TOOLS_AWS_PROFILE=$2 ; shift 2 ;;
+    -r|--region)  export AWS_REGION=$2 AWS_DEFAULT_REGION=$2 ; shift 2 ;;
+    -h|--help)    usage ;;
+    --)           shift; break ;;
+    *)            break ;;
   esac
 done
-shift $((OPTIND-1))
 
 if [ `uname` = "Darwin" ]; then
-    USER_UID=1000
-    USER_GID=50
+    CFN_TOOLS_USER_UID=1000
+    CFN_TOOLS_USER_GID=50
 else
-    USER_UID=$(id -u)
-    USER_GID=$(id -g)
+    CFN_TOOLS_USER_UID=$(id -u)
+    CFN_TOOLS_USER_GID=$(id -g)
 fi
 
-ORG=showmethemodel
-PROJECT=cfn-tools
-TAG=$ORG/$PROJECT
-VERSION=latest
-INFRA_BASE_DIR=$PWD
-CFN_DOCKERHOME=~/.cfn-tools/dockerhome
+org=showmethemodel
+project=cfn-tools
+tag=$org/$project
+version=latest
 
-export USER_UID USER_GID INFRA_BASE_DIR
+CFN_TOOLS_BASE_DIR=$PWD
 
-mkdir -p $CFN_DOCKERHOME
+local_home=$CFN_TOOLS_BASE_DIR/.cfn-tools/dockerhome
+global_home=$HOME/.cfn-tools/dockerhome
+local_config=$CFN_TOOLS_BASE_DIR/.cfn-tools/config
+global_config=$HOME/.cfn-tools/config
 
-if [ ! -f $CFN_DOCKERHOME/.bashrc ]; then
-  cat <<'EOT' > $CFN_DOCKERHOME/.bashrc
+# migration
+if [ -f .cfn-tools ]; then
+  echo "Migrating: .cfn-tools -> .cfn-tools/config"
+  tmp=$(mktemp)
+  mv .cfn-tools $tmp
+  mkdir .cfn-tools
+  mv $tmp .cfn-tools/config
+fi
+
+dockerhome=$local_home
+[ -d "$dockerhome" ] || dockerhome=$global_home
+
+CFN_TOOLS_CONFIG=$local_config
+[ -f "$CFN_TOOLS_CONFIG" ] || CFN_TOOLS_CONFIG=$global_config
+
+[ -f "$CFN_TOOLS_CONFIG" ] && . "$CFN_TOOLS_CONFIG"
+
+if [ -n "$AWS_REGION" -a -z "$AWS_DEFAULT_REGION" ]; then
+  export AWS_DEFAULT_REGION=$AWS_REGION
+elif [ -n "$AWS_DEFAULT_REGION" -a -z "$AWS_REGION" ]; then
+  export AWS_REGION=$AWS_DEFAULT_REGION
+fi
+
+export CFN_TOOLS_USER_UID CFN_TOOLS_USER_GID CFN_TOOLS_BASE_DIR CFN_TOOLS_AWS_PROFILE \
+  CFN_TOOLS_CMD CFN_TOOLS_BUCKET
+
+if [ ! -d "$global_home" ]; then
+  echo Creating docker home dir: "$global_home"
+  mkdir -p "$global_home"
+fi
+
+if [ ! -f $dockerhome/.bashrc ]; then
+  echo Creating bash config: "$dockerhome/.bashrc"
+  cat <<'EOT' > $dockerhome/.bashrc
 # .bashrc
 
 # Source global definitions
@@ -66,26 +104,28 @@ fi
 EOT
 fi
 
-mkdir -p $CFN_DOCKERHOME/.parallel
-touch $CFN_DOCKERHOME/.parallel/will-cite
+if [ ! -f "$dockerhome/.parallel/will-cite" ]; then
+  mkdir -p "$dockerhome/.parallel"
+  touch "$dockerhome/.parallel/will-cite"
+fi
 
-docker run -it --rm --net=host \
-  $NAMESERVER \
-  ${portmaps[@]} \
-  --name "$PROJECT.$USER.$(basename "$(pwd)" |grep -o '^[a-zA-Z0-9][a-zA-Z0-9_.-]*')" \
+docker run -i $with_terminal --rm --net=host \
+  --name "$project.$USER.$(basename "$(pwd)" |grep -o '^[a-zA-Z0-9][a-zA-Z0-9_.-]*')" \
   -v /var/run/docker.sock:/var/run/docker.sock \
-  -v "$CFN_DOCKERHOME:$HOME" \
-  -v "$INFRA_BASE_DIR:$INFRA_BASE_DIR" \
+  -v "$dockerhome:$HOME" \
+  -v "$CFN_TOOLS_BASE_DIR:$CFN_TOOLS_BASE_DIR" \
   -v $(dirname $SSH_AUTH_SOCK):$(dirname $SSH_AUTH_SOCK) \
-  -e USER_HOME=$HOME \
-  -e USER_NAME=$USER \
-  -e USER_UID \
-  -e USER_GID \
+  -e CFN_TOOLS_USER_HOME=$HOME \
+  -e CFN_TOOLS_USER_NAME=$USER \
+  -e CFN_TOOLS_USER_UID \
+  -e CFN_TOOLS_USER_GID \
+  -e CFN_TOOLS_AWS_PROFILE \
+  -e CFN_TOOLS_BASE_DIR \
+  -e CFN_TOOLS_CMD \
   -e SSH_AUTH_SOCK \
-  -e INFRA_BASE_DIR \
   -e AWS_ACCESS_KEY_ID \
   -e AWS_SECRET_ACCESS_KEY \
+  -e AWS_REGION \
   -e AWS_DEFAULT_REGION \
-  -e AWS_ACCOUNT_ID \
-  $@ \
-  $TAG:$VERSION /usr/bin/startup.sh
+  "$@" \
+  $tag:$version /usr/bin/startup.sh

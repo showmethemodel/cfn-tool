@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+
+exec aws-impl ${CFN_TOOLS_AWS_PROFILE:+--profile "$CFN_TOOLS_AWS_PROFILE"} "$@"

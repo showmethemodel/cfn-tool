@@ -1,0 +1,62 @@
+# encoding: utf-8
+cfn-tools(1) -- cloudformation tools docker launcher
+====================================================
+
+## SYNOPSIS
+
+`cfn-tools` [<OPTIONS>...] [`--` <DOCKER_OPTIONS>...]
+
+## DESCRIPTION
+
+Starts the `cfn-tools` docker container.
+
+## OPTIONS
+
+  * `-c`, `--command`=<command>:
+    Execute <command> in the shell and exit.
+
+  * `-h`, `--help`:
+    Print usage info and exit.
+
+  * `-p`, `--profile`=<profile>:
+    Use AWS IAM <profile> when making requests to the AWS API.
+
+  * `-r`, `--region`=<region>:
+    Use AWS <region> when making requests to the AWS API.
+
+## FILES
+
+  * `~/.cfn-tools/dockerhome/`:
+    This directory will be mounted as `$HOME` in the docker container. It is
+    created automatically the first time `cfn-tools` is launched, and it will
+    contain a basic `~/.bashrc` file.
+
+  * `./.cfn-tools`:
+    This (optional) file contains the name of the S3 bucket to which nested
+    stack templates will be uploaded. The file is a shell script which defines
+    the `CFN_TOOLS_BUCKET` variable. Note that there must be a separate bucket
+    for each AWS region in which templates are deployed. The `AWS_REGION`
+    environment variable is available for use in this script.
+
+## ENVIRONMENT VARIABLES
+
+The following environment variables may be used in lieu of profiles for the
+AWS credentials provider chain.
+
+  * `AWS_DEFAULT_REGION`, `AWS_REGION`:
+    The AWS region. These variables are set automatically when the `--region`
+    option is specified. Either of the above can be set in the environment
+    when the `--region` option is not specified (there are two because of an
+    inconsistency between the AWS CLI tools and the provider chain in the AWS
+    SDK, sometimes you need the one, sometimes the other -- the tool will copy
+    whichever one you set to the other one).
+
+  * `AWS_ACCESS_KEY_ID`:
+    The AWS access key identifier (ie. 'AKIAXXXXXXXXXXXXXXXX').
+
+  * `AWS_SECRET_ACCESS_KEY`:
+    The AWS secret key.
+
+## EXIT STATUS
+
+Exits with a status of 1 if an error occurred, or 0 otherwise.

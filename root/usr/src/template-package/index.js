@@ -60,6 +60,7 @@ function usage() {
 OPTIONS:
     -h, --help
     -j, --json
+    -l, --linter=LINTER
     -t, --temp-dir=DIR
     -b, --s3-bucket=BUCKET
     -p, --s3-prefix=PREFIX
@@ -75,6 +76,7 @@ function parseArgv(argv) {
       alias:    {
         'help':       'h',
         'json':       'j',
+        'linter':     'l',
         'temp-dir':   't',
         's3-bucket':  'b',
         's3-prefix':  'p',
@@ -82,7 +84,7 @@ function parseArgv(argv) {
         'verbose':    'v'
       },
       boolean:  ['help', 'json', 'verbose'],
-      string:   ['s3-bucket', 's3-prefix', 'template', 'out-file', 'temp-dir'],
+      string:   ['s3-bucket', 's3-prefix', 'template', 'out-file', 'temp-dir', 'linter'],
       unknown:  x => abort(`unknown option: ${x}`)
     }
   );
@@ -107,7 +109,8 @@ function main(argv) {
     tempdir:  opts['temp-dir'],
     s3bucket: opts['s3-bucket'],
     s3prefix: opts['s3-prefix'],
-    verbose:  opts['verbose']
+    verbose:  opts['verbose'],
+    linter:   opts['linter']
   }).writeTemplate(opts['template']).tmpPath;
 
   var ret = readFileSync(tplPath).toString('utf-8');

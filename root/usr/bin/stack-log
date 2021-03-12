@@ -14,13 +14,17 @@ usage() {
   exit;
 }
 
-while getopts "h" o; do
-  case "${o}" in
-    h) usage ;;
-    ?) abort ;;
+opts=$(getopt -o h --long profile:,region:,help -n parse-options -- "$@")
+if [ $? != 0 ]; then abort; fi
+eval set -- "$opts"
+
+while true; do
+  case "$1" in
+    -h|--help)  usage ; shift ;;
+    --)         shift; break ;;
+    *) break ;;
   esac
 done
-shift $((OPTIND-1))
 
 stack_name=$1 ; shift || true
 as_of=$1      ; shift || true

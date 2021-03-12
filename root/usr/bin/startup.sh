@@ -2,14 +2,14 @@
 
 abort() { exec 1>&2; [ $# -gt 0 ] && echo "$@"; exit 1; }
 
-for i in USER_HOME USER_NAME USER_GID USER_UID INFRA_BASE_DIR; do
+for i in CFN_TOOLS_USER_HOME CFN_TOOLS_USER_NAME CFN_TOOLS_USER_GID CFN_TOOLS_USER_UID CFN_TOOLS_BASE_DIR; do
   [[ ${!i} ]] || abort "required env var not set: $i"
 done
 
-echo "%$USER_NAME ALL=NOPASSWD: ALL" >> /etc/sudoers
+echo "%$CFN_TOOLS_USER_NAME ALL=NOPASSWD: ALL" >> /etc/sudoers
 
-groupadd -g $USER_GID $USER_NAME
-useradd -M -d $USER_HOME -g $USER_GID -u $USER_UID -c $USER_NAME $USER_NAME
+groupadd -g $CFN_TOOLS_USER_GID $CFN_TOOLS_USER_NAME
+useradd -M -d $CFN_TOOLS_USER_HOME -g $CFN_TOOLS_USER_GID -u $CFN_TOOLS_USER_UID -c $CFN_TOOLS_USER_NAME $CFN_TOOLS_USER_NAME
 
 # setup user to use "docker run" inside this container
 if [ -S /var/run/docker.sock ]; then
@@ -22,8 +22,12 @@ if [ -S /var/run/docker.sock ]; then
     done
     groupadd -g $docker_host_gid $docker_host_grp
   fi
-  usermod -aG $docker_host_grp $USER_NAME
+  usermod -aG $docker_host_grp $CFN_TOOLS_USER_NAME
 fi
+
+cd "$CFN_TOOLS_BASE_DIR"
+
+[ -z "$CFN_TOOLS_CMD" ] || exec su -c "$CFN_TOOLS_CMD" $CFN_TOOLS_USER_NAME
 
 echo -e "\033[1;36m"
 cat << 'EOT'
@@ -38,6 +42,4 @@ cat << 'EOT'
 EOT
 echo -e "\033[0m"
 
-cd "$INFRA_BASE_DIR"
-
-su $USER_NAME
+su $CFN_TOOLS_USER_NAME

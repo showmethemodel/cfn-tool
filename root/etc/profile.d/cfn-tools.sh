@@ -6,7 +6,7 @@ eval "$(dircolors -b)"
 export LS_COLORS
 
 # add bin dir to PATH
-export PATH=$INFRA_BASE_DIR/bin:$PATH:$HOME/bin
+export PATH=$CFN_TOOLS_BASE_DIR/bin:$PATH:$HOME/bin
 
 # stack command completion
 _cfn_stack_complete() {

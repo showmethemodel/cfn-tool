@@ -23,18 +23,14 @@ success() { bold "$(green "$@")"; }
 
 ## helpers ####################################################################
 
-[ -f .cfn-tools ] && . .cfn-tools || true
-export CFN_TOOLS_BUCKET
+export CFN_TOOLS_REGION=$AWS_DEFAULT_REGION
 
 bucket=$CFN_TOOLS_BUCKET
-
-export CFN_TOOLS_REGION=$AWS_DEFAULT_REGION
-export CFN_TOOLS_AWS_OPTS=''
 
 assert_vars() {
   [ $CFN_TOOLS_BUCKET ] || {
     warn required env var CFN_TOOLS_BUCKET not set
-    warn Hint: 'echo CFN_TOOLS_BUCKET=my-bukkit > .cfn-tools'
+    warn Hint: 'echo CFN_TOOLS_BUCKET=my-bukkit > .cfn-tools/config'
     abort
   }
 }

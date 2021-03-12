@@ -25,7 +25,18 @@ RUN curl -L https://nodejs.org/dist/v12.19.0/node-v12.19.0-linux-x64.tar.xz \
 
 RUN npm install -g aws-sdk
 
+RUN pip install cfn-lint
+
+RUN curl -LO https://github.com/scop/bash-completion/releases/download/2.11/bash-completion-2.11.tar.xz \
+  && xz -d bash-completion-2.11.tar.xz \
+  && tar xf bash-completion-2.11.tar \
+  && (cd bash-completion-2.11 && ./configure && make && make install) \
+  && rm -rf bash-completion-2.11* \
+  && cp /usr/local/etc/profile.d/bash_completion.sh /etc/profile.d/
+
 ADD . /tmp/cfn-tools
+
+RUN mv /usr/local/bin/aws /usr/local/bin/aws-impl
 
 RUN (cd /tmp/cfn-tools && git archive --format=tar HEAD root) \
   | (cd / && tar --strip-components=1 -xf -)

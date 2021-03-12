@@ -33,8 +33,6 @@ linter=
 
 while true; do
   case "$1" in
-    --profile)      CFN_TOOLS_AWS_OPTS="$CFN_TOOLS_AWS_OPTS --profile $2" ; shift 2 ;;
-    --region)       CFN_TOOLS_AWS_OPTS="$CFN_TOOLS_AWS_OPTS --region $2" ; shift 2 ;;
     -c|--create)    changeset=CREATE ; shift ;;
     -h|--help)      usage ; shift ;;
     -l|--linter)    linter=$2 ; shift 2 ;;
@@ -116,7 +114,9 @@ aws cloudformation create-change-set \
 root_change_set_id=$(cat $change_set_ids)
 
 change_set_log() {
-  aws cloudformation describe-change-set --change-set-name $1 |jt StatusReason %
+  aws cloudformation describe-change-set \
+    --change-set-name $1 \
+    |jt StatusReason %
 }
 
 while [ $(cat $change_set_ids |grep . |wc -l) -gt 0 ]; do
