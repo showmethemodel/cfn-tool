@@ -13,39 +13,30 @@ USAGE: $prog [OPTIONS...] [-- DOCKEROPTIONS...]
   Starts the cfn-tools docker container.
 
 OPTIONS:
-  -c, --command=<command>     Execute <command> in the shell and exit.
-  -h, --help                  Print this and exit.
-  -p, --profile=<profile>     Configure the AWS credentials profile.
-  -r, --region=<region>       Configure AWS region.
+  -c <command>     Execute <command> in the shell and exit.
+  -h               Print this and exit.
+  -p <profile>     Configure the AWS credentials profile.
+  -r <region>      Configure AWS region.
 EOT
   exit;
 }
 
-opts=$(getopt -o c:p:r:h --long command:,profile:,region:,help -n parse-options -- "$@")
-if [ $? != 0 ]; then abort; fi
-eval set -- "$opts"
-
 with_terminal=-t
 CFN_TOOLS_AWS_PROFILE=
 
-while true; do
-  case "$1" in
-    -c|--command) CFN_TOOLS_CMD=$2 ; with_terminal= ; shift 2 ;;
-    -p|--profile) CFN_TOOLS_AWS_PROFILE=$2 ; shift 2 ;;
-    -r|--region)  export AWS_REGION=$2 AWS_DEFAULT_REGION=$2 ; shift 2 ;;
-    -h|--help)    usage ;;
-    --)           shift; break ;;
-    *)            break ;;
+while getopts "c:p:r:h" o; do
+  case "${o}" in
+    c) CFN_TOOLS_CMD=$OPTARG ; with_terminal= ;;
+    p) CFN_TOOLS_AWS_PROFILE=$OPTARG ;;
+    r) export AWS_REGION=$OPTARG AWS_DEFAULT_REGION=$OPTARG ;;
+    h) usage ;;
+    ?) abort ;;
   esac
 done
+shift $((OPTIND-1))
 
-if [ `uname` = "Darwin" ]; then
-    CFN_TOOLS_USER_UID=1000
-    CFN_TOOLS_USER_GID=50
-else
-    CFN_TOOLS_USER_UID=$(id -u)
-    CFN_TOOLS_USER_GID=$(id -g)
-fi
+CFN_TOOLS_USER_UID=$(id -u)
+CFN_TOOLS_USER_GID=$(id -g)
 
 org=showmethemodel
 project=cfn-tools

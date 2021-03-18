@@ -12,16 +12,16 @@ Starts the `cfn-tools` docker container.
 
 ## OPTIONS
 
-  * `-c`, `--command`=<command>:
+  * `-c` <command>:
     Execute <command> in the shell and exit.
 
-  * `-h`, `--help`:
+  * `-h`:
     Print usage info and exit.
 
-  * `-p`, `--profile`=<profile>:
+  * `-p` <profile>:
     Use AWS IAM <profile> when making requests to the AWS API.
 
-  * `-r`, `--region`=<region>:
+  * `-r` <region>:
     Use AWS <region> when making requests to the AWS API.
 
 ## FILES
@@ -31,7 +31,13 @@ Starts the `cfn-tools` docker container.
     created automatically the first time `cfn-tools` is launched, and it will
     contain a basic `~/.bashrc` file.
 
-  * `./.cfn-tools`:
+  * `./.cfn-tools/dockerhome/`:
+    This directory will be mounted as `$HOME` in the docker container, local
+    to the current project. This will override the docker home dir in the
+    user's home directory. If this directory exists and does not contain a
+    `.bashrc` file, a basic one will be created.
+
+  * `./.cfn-tools/config`:
     This (optional) file contains the name of the S3 bucket to which nested
     stack templates will be uploaded. The file is a shell script which defines
     the `CFN_TOOLS_BUCKET` variable. Note that there must be a separate bucket

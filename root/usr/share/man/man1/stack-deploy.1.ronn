@@ -43,8 +43,13 @@ template named infra/<template>.yml.
 The following environment variables may be used in lieu of profiles for the
 AWS credentials provider chain.
 
-  * `AWS_DEFAULT_REGION`:
-    The AWS region.
+  * `AWS_DEFAULT_REGION`, `AWS_REGION`:
+    The AWS region. These variables are set automatically when the `--region`
+    option is specified. Either of the above can be set in the environment
+    when the `--region` option is not specified (there are two because of an
+    inconsistency between the AWS CLI tools and the provider chain in the AWS
+    SDK, sometimes you need the one, sometimes the other -- the tool will copy
+    whichever one you set to the other one).
 
   * `AWS_ACCESS_KEY_ID`:
     The AWS access key identifier (ie. 'AKIAXXXXXXXXXXXXXXXX').
